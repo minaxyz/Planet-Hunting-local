@@ -131,7 +131,7 @@ class TransitDetector():
 class DataAnalyser():
     def __init__(self, dataID, dataHandler:AbstractDataHandler=LocalDataHandler):
         dataHandler = dataHandler(dataID)
-        #Flux against Time data
+        # Flux against Time data
         self.times, self.flux = dataHandler.getData()
         self.phaseFoldedTimes, self.phaseFoldedFlux = None, None
         self.transits = TransitDetector(self.times, self.flux)
@@ -202,9 +202,19 @@ class DataAnalyser():
                 skippedTransits = round((nextTransitTimeFound-nextTransitTimePredicted)/self.period)
             self.period = (nextTransitTimeFound - self.phase)/(nTransits + skippedTransits)
             nTransitsStep *= 2
-            nTransits += nTransitsStep + skippedTransits
+            nTransits = nTransitsStep + skippedTransits
             nextTransitTimePredicted = nextTransitTimeFound + self.period*(nTransitsStep-0.05)
         return (lastTransit-self.phase)/round((lastTransit-self.phase)/self.period)
+
+    def readNewData(self, dataID): # For @Szymon's funky data only
+        df=pd.read_table(dataID,comment='#', delim_whitespace=True,skiprows=136)
+        df.dropna(inplace=True) # This removes the NaNs from the data
+        x1,x2,x3,x4,x5,x6,x7,x8,x9,x10=(np.split(df.to_numpy(),10,1)) # Split the data frame into individual numpy arrays
+        time=x1 # Define a new time array
+        flux=x8 # Define a new flux array
+        return time, flux
+        # plt.plot(time,flux,'b.') # Plot the data as usual
+        # plt.show()
 
 class PhaseFoldedTransitModel():
     def __init__(self, phaseFoldedTimes, phaseFoldedFlux):
