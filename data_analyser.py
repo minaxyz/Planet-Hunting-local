@@ -143,7 +143,7 @@ class DataAnalyser():
         self.size = len(self.times)
         self.period = None
         self.transitBound = None
-        self.transitLenth = None
+        self.transitLength = None
         self.phase = None
         self.dt = min(self.times[1]-self.times[0], self.times[2]-self.times[1])
 
@@ -186,14 +186,14 @@ class DataAnalyser():
     def getPhase(self):
         if self.phase is None:
             firstTransitStart, self.phase, firstTransitEnd = self.transits.findTransitBounds()
-            self.transitLenth = firstTransitEnd - firstTransitStart
+            self.transitLength = firstTransitEnd - firstTransitStart
         return self.phase
     
     def __calculateOrbitalPeriod(self):
         self.getPhase()
         self.period = self.phase - self.times[0]
         nextTransitTimePredicted = self.phase + self.period
-        self.transits.setStandardStep(self.transitLenth/2)
+        self.transits.setStandardStep(self.transitLength/2)
         lastTransit = self.transits.findTransitPeak(self.transits.end,-1)
         nTransitsStep, nTransits, skippedTransits = 1, 1, 0
         while nextTransitTimePredicted < lastTransit:
