@@ -213,8 +213,8 @@ class DataAnalyser():
         time=x1 # Define a new time array
         flux=x8 # Define a new flux array
         return time, flux
-        # plt.plot(time,flux,'b.') # Plot the data as usual
-        # plt.show()
+        '''We need a new plot function / calculations that use this module
+        instead of the default one. '''
 
 class PhaseFoldedTransitModel():
     def __init__(self, phaseFoldedTimes, phaseFoldedFlux):
