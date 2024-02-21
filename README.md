@@ -56,68 +56,43 @@ benchmarkArrayFunc()
 DataAnalyser from data_analyser
 perf_counter from time
 - Classes
+   - Timing()
 
-Timing()
+- Functions (in Timing())
 
-- Functions (inside class - Timing())
+__init__()
 
+   * Parameters : sinceLastOut(set to be true on defult), ms(set to be true on defult)
+   * self.s (the start time of when the class is instantiated)
+   * self.last (set to equal self.s)
+   * self.sinceLastOut (set to equal sinceLastOut)
+   * self.unit (value will be 1000 if ms is true, else the value will be 1)
+   * self.unitPrefix (value will be 'ms' if ms is true, else the value will be 's')
 
+out()
+
+   * Parameters : self, label
+   * prints the value of label then the time elapsed since the class was instantiated in the unit chosen and with the value in unitPrefix concatinated onto the end
+   * if sinceLastOut is still true then self.last will be given the value of the current time
+
+totalOut()
+
+   * Parameters : self, label(set to be an empty string on defalt)
+   * if self.sinceLastOut has the value False then self.out() will be called with the parameter label
+   * then, regardless of the outcome, it prints 'Total:' followed by the time elapsed since the class was instantiated in the unit chosen and with the value in unitPrefix concatinated onto the end
+
+- Functions
+
+timedTest()
+
+   * Parameters : dataID, plotType(set to be an empty string on defalt)
+   * prints the dataID followed by 'results:'
+   * the the class Timing is instantiatied under the variable t and the class DataAnalyser, from ##data_analyser is instantiatied under the variable analyser
+   * the program then outputs the time taken for initialisation and then calls the function getOrbitalPeriod() in analyser and outputs the time taken for that function to perform
+   * after, the prorgam calls the function getModel() from analyser and outputs the values of m.min and m.max. then the program outputs the time taken for that function to perform
+   * then the program prints the value of period and calls the function totalOut() in t. After the data is plotted from the fuction plot() from analyser
 
 ## pwlf.py
 piecewise linear library -- not our code but referred to in other parts of the project
 
 ## data_analyser.py
-- Imports
-stdev from statistics
-floor and ceil from math
-AbstractDataHandler and LocalDataHandler from data_handler
-matplotlib.pyplot
-numpy
-PiecewiseLinFit from pwlf.py
-- In class DataAnalyser -- __init__
-self.handler
-self.times
-self.flux
-self.phaseFoldedTime
-self.radius
-self.mass
-self.size
-self.period
-self.transitBound
-self.transitLength
-self.phase
-self.dt
-- In class DataAnalyser -- Functions
-
-plot()
-
-    * Parameters : self, plotType=""
-    * plots graphs of two case types - a regular scatter plot of times against flux and a phase folded graph that calls another function __getPhaseFoldedTime() and plots the returned value against flux. 
-    * It then shows the graph plotted with time against flux
-
-__getPhaseFoldedTime()
-
-    * Parameters : self
-    * finds the phase folded time if there isn't a value stored in self.phaseFoldedTime already from the orbital period
-    * returns the phase folded time in self.phaseFoldedTime
-
-getOrbitalPeriod()
-
-    * Parameters : self
-    * returns the orbital period if self.period is not none and calls the function __calculateOrbitalPeriod() if there is no current orbital period calculated and then returns the output of the function
-
-getTransitLength()
-
-    * Parameters : self
-    * returns the transit length if self.transitLength is not none and calls the function getPhase() if there is no current transit length calculated and then returns the output of the function
-
-getPhase()
-
-    * Parameters : self
-    * if there is no current value for self.phase this function will get the values of firstTransitStart and firstTransitPeak from the function __findTransitBounds() (rounded to 2 significant figures). From those two values it then performs calculations to work out self.phase and self.transitLength
-    * The program then returns self.phase
-
-__calculateOrbitalPeriod()
-
-    * Parameters : self
-    * 

@@ -20,4 +20,17 @@ def benchmarkArrayFunc(size, n, funcs):
     for i, func in enumerate(funcs):
         print(f"{func.__name__}: {tSum[i]*1000/n}ms")
 
-benchmarkArrayFunc(65000, 10000, [binarySearch, np.searchsorted, interpolationSearch])
+def testPeriodicSignalEstimator(period, phase, size, absSpread=0, missingPercent=0):
+    array = [period*x + phase + 2*absSpread*random.random() - absSpread for x in range(size)]
+    missingPoints = random.sample([x for x in range(size)], floor(size*missingPercent))
+    xSum = sum([array[i] for i in range(size) if i not in missingPoints])
+    xiSum = sum((i*array[i] for i in range(size) if i not in missingPoints))
+    N = size
+    s1 = len(missingPoints)
+    s2 = sum(missingPoints)
+    s3 = sum([x*x for x in missingPoints])
+    periodE, phaseE = estimatePeriodicSignal(xSum, xiSum, N, s1, s2, s3)
+    print(f"Period - Actual: {period}, Estimate: {periodE}\nPhase - Actual: {phase}, Estimate: {phaseE}")
+
+#benchmarkArrayFunc(65000, 10000, [binarySearch, np.searchsorted, interpolationSearch])
+testPeriodicSignalEstimator(30, 100, 100, 1, 0.2)

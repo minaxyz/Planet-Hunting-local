@@ -1,5 +1,7 @@
+from data_handler import LocalDataHandler
 from data_analyser import DataAnalyser
 from time import perf_counter
+import matplotlib.pyplot as plt
 
 class Timing():
     def __init__(self, sinceLastOut=True, ms=True):
@@ -26,14 +28,20 @@ def timedTest(dataID, plotType=""):
     t.out("Initialisation")
     period = analyser.getOrbitalPeriod()
     t.out("Period")
-    m = analyser.getModel()
-    print(m.min, m.max)
-    t.out("Model")
-    print(m.chiSquaredFunc())
-    t.out("Model Error")
-    print(period)
+    #m = analyser.getModel()
+    #t.out("Model")
+    #print(m.min, m.max)
+    print(f"{period = }")
     t.totalOut()
     analyser.plot(plotType)
 
-#KIC002571238 period = 9.286989632903225
-timedTest("KIC002571238", "pm")
+def fluxHistogram(dataID):
+    hangler = LocalDataHandler(dataID)
+    flux = hangler.getData()[1]
+    plt.figure()
+    plt.hist(flux, 100)
+    plt.show()
+
+#KIC002571238 period = 9.286958783276173
+timedTest("kplr008414716", "s")
+#fluxHistogram("kplr002853093")
