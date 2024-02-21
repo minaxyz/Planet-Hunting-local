@@ -43,5 +43,5 @@ def fluxHistogram(dataID):
     plt.show()
 
 #KIC002571238 period = 9.286958783276173
-timedTest("kplr008414716", "s")
+timedTest("kplr012403119", "s")
 #fluxHistogram("kplr002853093")
