@@ -21,7 +21,7 @@ class Timing():
             self.out(label)
         print(f"Total: {(perf_counter() - self.s)*self.unit} {self.unitPrefix}")
 
-def timedTest(dataID, plotType=""):
+def timedTest(dataID, plotType=None):
     print(f"{dataID} results:")
     t = Timing(True, True)
     analyser = DataAnalyser(dataID)
@@ -33,15 +33,9 @@ def timedTest(dataID, plotType=""):
     #print(m.min, m.max)
     print(f"{period = }")
     t.totalOut()
-    analyser.plot(plotType)
-
-def fluxHistogram(dataID):
-    hangler = LocalDataHandler(dataID)
-    flux = hangler.getData()[1]
-    plt.figure()
-    plt.hist(flux, 100)
-    plt.show()
+    if plotType != None:
+        analyser.plot(plotType)
 
 #KIC002571238 period = 9.286958783276173
-timedTest("kplr012403119", "s")
-#fluxHistogram("kplr002853093")
+#timedTest("kplr002853093", "hist")
+print(LocalDataHandler("kplr002853093").getMass())

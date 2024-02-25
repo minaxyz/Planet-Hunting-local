@@ -16,6 +16,13 @@ def plot(*plots):
         plt.plot(*data, '.', markersize=2)
     plt.show()
 
+def histogram(flux):
+    plt.figure()
+    plt.xlabel("Time")
+    plt.ylabel("Frequency")
+    plt.hist(flux, 100)
+    plt.show()
+
 class TransitDetector():
     def __init__(self, times, flux, averageTime=False):
         self.times, self.flux = times, flux
@@ -162,6 +169,8 @@ class DataAnalyser():
                 plot(self.getModel().getData())
             case "phase model" | "pm" | "p+":
                 plot(self.getPhaseFoldedData(), self.getModel().getData())
+            case "histogram" | "hist" | "h":
+                histogram(self.flux)
             case _:
                 raise Exception("Invalid Plot Type: Plot not recognised.\nPlot Type Options: 'standard', 'phase folded', 'model', 'phase model'.")
         plt.show()
