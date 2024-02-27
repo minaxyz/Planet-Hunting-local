@@ -7,6 +7,8 @@ from data_handler import AbstractDataHandler, LocalDataHandler
 from utils import estimatePeriodicSignal
 
 SAMPLES = 300
+SIGNIFICANCE_LEVEL = 0.05
+MINIMUM_PERIOD = 0.241842217
 
 def plot(*plots):
     plt.figure()
@@ -19,41 +21,37 @@ def plot(*plots):
 def histogram(flux):
     plt.figure()
     plt.xlabel("Time")
-    plt.ylabel("Frequency")
-    plt.hist(flux, 100)
+    plt.ylabel("Proportion")
+    plt.hist(flux, 100, weights=np.full(len(flux),1/len(flux),dtype=float))
     plt.show()
 
 class TransitDetector():
     def __init__(self, times, flux, averageTime=False):
-        self.times, self.flux = times, flux
-
+        self.times = times
         self.size = len(self.times)
-        self.transitBound = None
         self.dt = min(self.times[1]-self.times[0], self.times[2]-self.times[1]) if averageTime else (self.times[-1] - self.times[0])/self.size
+        uniformConvolutionFactor = floor(0.95*MINIMUM_PERIOD/self.dt) or 1
+        self.convolutedFlux = np.convolve(flux, np.full(uniformConvolutionFactor, 1/uniformConvolutionFactor, dtype=float),'same')
+
+        self.transitBound = None
         self.standardStep = 1
         
         self.end = self.times[-1]
         self.start = self.times[0]
 
-    def setStandardStep(self, time):
-        self.standardStep = abs(floor(time/self.dt)) or 1
-
     def __findTime(self, time):
-        return (self.times.searchsorted(time) or 1) - 1
+        return min(self.times.searchsorted(time), self.size - 1)
+
+    def findTransitPeak(self, time=0, reverse=False):
+        return self.times[self.__findTransitPeak(self.__findTime(time), reverse)]
+
+    def __findTransitPeak(self, start, reverse):
+        return self.__findTransitBounds(start, reverse)[1]
     
-    def __normaliseStep(self, step):
-        return self.standardStep if step is None else floor(step*self.standardStep) or (self.standardStep if step >= 0 else -self.standardStep)
+    def findTransitBounds(self, time=0, reverse=False):
+        return tuple((self.times[x] for x in self.__findTransitBounds(self.__findTime(time), reverse)))
 
-    def findTransitPeak(self, time=0, step=None):
-        return self.times[self.__findTransitPeak(self.__findTime(time), self.__normaliseStep(step))]
-
-    def __findTransitPeak(self, start=0, step=1):
-        return self.__findTransitBounds(start, step)[1]
-    
-    def findTransitBounds(self, time=0, step=None):
-        return tuple((self.times[x] for x in self.__findTransitBounds(self.__findTime(time), self.__normaliseStep(step))))
-
-    def __findTransitBounds(self, start=0, step=1):
+    def __findTransitBounds(self, start, reverse):
         """
         Returns the time index of a transit's start, peak and end.
 
@@ -71,19 +69,21 @@ class TransitDetector():
                 peak (int) - The time index at which the transit reaches its maximum flux.
                 end (int) - The time index at which the transit ends (flux is outside the transit bound consistently). 
         """
-        start = self.__findTransitStart(start, step)
-        fluxLow = self.flux[start]
+        start = self.__findTransit(start, reverse)
+        for i in range(start, -1, -1):
+            if self.convolutedFlux[i] > self.transitBound:
+                break
+        fluxLow = self.convolutedFlux[start]
         iLow = start
-        end = self.size - 2
         i = start
-        for i in range(start + 1, end, 1):
-            if (flux := self.flux[i]) < fluxLow:
+        for i in range(start + 1, self.size, -1 if reverse else 1):
+            if (flux := self.convolutedFlux[i]) < fluxLow:
                 fluxLow, iLow = flux, i
-            elif self.flux[i] > 0 and self.flux[i + 1] > 0 and self.flux[i + 2] > 0:
+            elif self.convolutedFlux[i] > self.transitBound:
                 return start, iLow, i
         return start, iLow, i
 
-    def __findTransitStart(self, start=0, step=1):
+    def __findTransit(self, start, reverse):
         """
         Searches for the start of a transit. For a transit to be detected, the flux value must be inside the transit bound consistently.
         
@@ -103,16 +103,13 @@ class TransitDetector():
                 end (int) - The time index at which the transit ends (flux is outside the transit bound consistently after this value).
         """
         i = 0
-        lb = self.getApproxTransitBound()
+        self.getApproxTransitBound()
         if start > self.size - 3:
             start = self.size - 3
-        end = self.size - 2 if step >= 0 else -1
-        for i in range(start, end, step):
-            if self.flux[i] < lb and self.flux[i + 1] < lb and self.flux[i + 2] < lb:
-                break
-        end = -1 if step >= 0 else self.size
-        for i in range(i, end, -1 if step >= 0 else 1):
-            if self.flux[i] > lb and self.flux[i - 1] > lb and self.flux[i - 2] > lb:
+        start = min(max(start, 0), self.size - 3)
+        end = -1 if reverse else self.size
+        for i in range(start, end, -1 if reverse else 1):
+            if self.convolutedFlux[i] < self.transitBound:
                 return i
         raise Exception("Transit not found.")
             
@@ -125,18 +122,18 @@ class TransitDetector():
             flux value (float) -- Approx Transit Bound = Q1 - 2*IR, where Q1 is the lower quartile, IR the inequartile range.
         """
         if self.transitBound is None:
-            sortedSamples = sorted(self.flux[:SAMPLES])
-            self.transitBound = -sortedSamples[floor(0.99*SAMPLES)]
+            sortedSamples = sorted(self.convolutedFlux[:SAMPLES])
+            self.transitBound = sortedSamples[floor(0.5*SAMPLES)] - 2.5*sortedSamples[floor((1 - SIGNIFICANCE_LEVEL)*SAMPLES)]
         return self.transitBound
     
     def __getitem__(self, key):
         if isinstance(key, slice):
             start = self.__findTime(key.start)
             stop = self.__findTime(key.stop)
-            return self.times[start:stop], self.flux[start:stop]
+            return self.times[start:stop], self.convolutedFlux[start:stop]
         else:
             i = self.__findTime(key)
-            return self.times[i], self.flux[i]
+            return self.times[i], self.convolutedFlux[i]
 
 class DataAnalyser():
     def __init__(self, dataID, dataHandler:AbstractDataHandler=LocalDataHandler):
@@ -167,8 +164,12 @@ class DataAnalyser():
                 plot(self.getModel().getData())
             case "phase model" | "pm" | "p+":
                 plot(self.getPhaseFoldedData(), self.getModel().getData())
+            case "convolved" | "convolution" | "con" | "c":
+                plot((self.times, self.transits.convolutedFlux))
             case "histogram" | "hist" | "h":
                 histogram(self.flux)
+            case "convolved histogram" | "con hist" | "ch":
+                histogram(self.transits.convolutedFlux)
             case _:
                 raise Exception("Invalid Plot Type: Plot not recognised.\nPlot Type Options: 'standard', 'phase folded', 'model', 'phase model'.")
         plt.show()
@@ -210,16 +211,14 @@ class DataAnalyser():
         """Uses a least squares sum method to calculate the orbital period, and improves the estimation of the phase.
         """
         self.getPhase()
-        self.transits.setStandardStep(self.transitLenth/6)
-        self.period = self.phase - self.times[0]
+        self.period = self.transits.findTransitPeak(self.phase + self.transitLenth) - self.phase
         nextTransitTimePredicted = self.phase + self.period
-        lastTransit = self.transits.findTransitBounds(self.transits.end,-1)[0]
-        backtrack = -0.05*self.period
+        lastTransit = self.transits.findTransitBounds(self.transits.end, True)[0]
         nTransits = 1
         peakSum, weightedPeakSum = self.phase, 0
         nSkippedTransits, skippedTransitsSum, skippedTransitsSquareSum = 0, 0, 0
         while nextTransitTimePredicted < lastTransit:
-            nextTransitTimeFound = self.transits.findTransitPeak(nextTransitTimePredicted + backtrack)
+            nextTransitTimeFound = self.transits.findTransitPeak(nextTransitTimePredicted)
             if (currentSkippedTransits := round((nextTransitTimeFound-nextTransitTimePredicted)/self.period)) and nTransits > 1:
                 newNTransits = nTransits + currentSkippedTransits
                 nSkippedTransits += currentSkippedTransits
@@ -229,7 +228,7 @@ class DataAnalyser():
             peakSum += nextTransitTimeFound
             weightedPeakSum += nTransits*nextTransitTimeFound
             self.period = (nextTransitTimeFound - self.phase)/nTransits
-            nextTransitTimePredicted = nextTransitTimeFound + self.period
+            nextTransitTimePredicted = nextTransitTimeFound + (1 - SIGNIFICANCE_LEVEL)*self.period
             nTransits += 1
         
         self.period, self.phase = estimatePeriodicSignal(peakSum, weightedPeakSum, nTransits, nSkippedTransits, skippedTransitsSum, skippedTransitsSquareSum)

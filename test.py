@@ -27,15 +27,15 @@ def timedTest(dataID, plotType=None):
     analyser = DataAnalyser(dataID)
     t.out("Initialisation")
     period = analyser.getOrbitalPeriod()
-    t.out("Period")
+    phase = analyser.getPhase()
+    t.out("Period & Phase")
     #m = analyser.getModel()
     #t.out("Model")
     #print(m.min, m.max)
-    print(f"{period = }")
+    print(f"{period = }, {phase = }")
     t.totalOut()
     if plotType != None:
         analyser.plot(plotType)
 
 #KIC002571238 period = 9.286958783276173
-#timedTest("kplr002853093", "hist")
-print(LocalDataHandler("kplr002853093").getMass())
+timedTest("KIC002571238", 'c')
