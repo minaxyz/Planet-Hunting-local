@@ -38,4 +38,4 @@ def timedTest(dataID, plotType=None):
         analyser.plot(plotType)
 
 #KIC002571238 period = 9.286958783276173
-timedTest("KIC002571238", 'c')
+timedTest("kplr005796675", 'c')

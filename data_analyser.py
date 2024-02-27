@@ -30,6 +30,7 @@ class TransitDetector():
         self.times = times
         self.size = len(self.times)
         self.dt = min(self.times[1]-self.times[0], self.times[2]-self.times[1]) if averageTime else (self.times[-1] - self.times[0])/self.size
+        #Applies a convolution to the flux which reduces noise and accentuates transits.
         uniformConvolutionFactor = floor(0.95*MINIMUM_PERIOD/self.dt) or 1
         self.convolutedFlux = np.convolve(flux, np.full(uniformConvolutionFactor, 1/uniformConvolutionFactor, dtype=float),'same')
 
