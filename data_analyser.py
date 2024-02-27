@@ -59,15 +59,16 @@ class TransitDetector():
         Parameters:
             start (int) - The time index the searching of a transit begins from.
 
-            step (int) - The distance between samples for detecting a transit. When searching for a transit of a given length, the step 
-            should be half the transit length.
+            revese (bool) - Reverses the direction of the search if True, by default the timestep is the same as the time array.
 
         ----------
         Returns:
             tuple (start, peak, end):
-                start (int) - The time index at which the transit is detected (flux is inside the transit bound consistently).
+                start (int) - The time index at which the transit is detected.
+                
                 peak (int) - The time index at which the transit reaches its maximum flux.
-                end (int) - The time index at which the transit ends (flux is outside the transit bound consistently). 
+                
+                end (int) - The time index at which the transit ends. 
         """
         start = self.__findTransit(start, reverse)
         for i in range(start, -1, -1):
@@ -85,22 +86,17 @@ class TransitDetector():
 
     def __findTransit(self, start, reverse):
         """
-        Searches for the start of a transit. For a transit to be detected, the flux value must be inside the transit bound consistently.
+        Searches for the start of a transit. For a transit to be detected, the convolved flux value must be below the transit bound.
         
         ----------
         Parameters:
             start (int) - The time index the searching of a transit begins from.
 
-            step (int) - The time index distance between samples for detecting a transit.
+            revese (bool) - Reverses the direction of the search if True, by default the timestep is the same as the time array.
 
         ----------
         Returns:
-            tuple (start, peak, end):
-                start (int) - The time index at which the transit starts (flux is outside the transit bound consistently before this value).
-
-                peak (int) - The time index at which the transit reaches its maximum flux.
-
-                end (int) - The time index at which the transit ends (flux is outside the transit bound consistently after this value).
+            transit bound (int) - The time index at which the transit is detected.
         """
         i = 0
         self.getApproxTransitBound()
@@ -115,11 +111,12 @@ class TransitDetector():
             
     def getApproxTransitBound(self):
         """
-        Returns an approximate flux value below which transits should occur:
+        Returns an approximate flux value below which transits should occur.
 
         ----------
         Returns:
-            flux value (float) -- Approx Transit Bound = Q1 - 2*IR, where Q1 is the lower quartile, IR the inequartile range.
+            flux value (float) -- Defined as `Median convolved flux value - 2.5(SIGNIFICANCE_LEVEL from the highest convolved flux value)`
+            from a sample of the first SAMPLE values.
         """
         if self.transitBound is None:
             sortedSamples = sorted(self.convolutedFlux[:SAMPLES])
