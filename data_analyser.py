@@ -26,12 +26,12 @@ def histogram(flux):
     plt.show()
 
 class TransitDetector():
-    def __init__(self, times, flux, averageTime=False):
+    def __init__(self, times, flux, searchMode=True):
         self.times = times
         self.size = len(self.times)
-        self.dt = min(self.times[1]-self.times[0], self.times[2]-self.times[1]) if averageTime else (self.times[-1] - self.times[0])/self.size
+        self.dt = (self.times[-1] - self.times[0])/self.size
         #Applies a convolution to the flux which reduces noise and accentuates transits.
-        uniformConvolutionFactor = floor(0.95*MINIMUM_PERIOD/self.dt) or 1
+        uniformConvolutionFactor = floor(0.95*MINIMUM_PERIOD/self.dt) or 1 if searchMode else 3
         self.convolutedFlux = np.convolve(flux, np.full(uniformConvolutionFactor, 1/uniformConvolutionFactor, dtype=float),'same')
 
         self.transitBound = None
@@ -72,13 +72,13 @@ class TransitDetector():
                 end (int) - The time index at which the transit ends. 
         """
         start = self.__findTransit(start, reverse)
-        for i in range(start, -1, -1):
-            if self.convolutedFlux[i] > self.transitBound:
+        for start in range(start, -1, -1):
+            if self.convolutedFlux[start] > self.transitBound:
                 break
         fluxLow = self.convolutedFlux[start]
         iLow = start
         i = start
-        for i in range(start + 1, self.size, -1 if reverse else 1):
+        for i in range(start + 1, self.size, 1):
             if (flux := self.convolutedFlux[i]) < fluxLow:
                 fluxLow, iLow = flux, i
             elif self.convolutedFlux[i] > self.transitBound:
@@ -121,7 +121,7 @@ class TransitDetector():
         """
         if self.transitBound is None:
             sortedSamples = sorted(self.convolutedFlux[:SAMPLES])
-            self.transitBound = sortedSamples[floor(0.5*SAMPLES)] - 2.5*sortedSamples[floor((1 - SIGNIFICANCE_LEVEL)*SAMPLES)]
+            self.transitBound = sortedSamples[floor(0.5*SAMPLES)] + 2.5*(sortedSamples[floor(0.5*SAMPLES)] - sortedSamples[floor((1 - SIGNIFICANCE_LEVEL)*SAMPLES)])
         return self.transitBound
     
     def __getitem__(self, key):
@@ -242,7 +242,7 @@ class PhaseFoldedTransitModel():
         """
         #The phase-folded time-sorted transit data.
         self.phaseFoldedTimes, self.phaseFoldedFlux = phaseFoldedTimes, phaseFoldedFlux
-        self.transitDetector = TransitDetector(phaseFoldedTimes, phaseFoldedFlux, True)
+        self.transitDetector = TransitDetector(phaseFoldedTimes, phaseFoldedFlux, False)
         #Finds the transit bounds to create the interpolated model from.
         self.min, peak, self.max = self.transitDetector.findTransitBounds(0)
         #Creates a polynomial to fit the phase folded transit.
