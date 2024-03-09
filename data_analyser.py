@@ -8,7 +8,7 @@ from data_handler import AbstractDataHandler, LocalDataHandler
 from utils import estimatePeriodicSignal
 
 ##Transit Detection Constants
-SAMPLES = 300
+FLUX_SAMPLES = 600
 SIGNIFICANCE_LEVEL = 0.05 #Determines the transit bound
 MINIMUM_PERIOD = 0.241842217 #Minimum period used to determine the transit detector uniform convolution factor. Sourced from the NASA exoplanet archive.
 
@@ -155,9 +155,9 @@ class TransitDetector():
             from a sample of the first SAMPLE values.
         """
         if self.transitThreshold is None:
-            sortedSamples = sorted(self.convolutedFlux[:SAMPLES])
-            self.medianFlux = sortedSamples[floor(0.5*SAMPLES)]
-            self.transitThreshold = self.medianFlux + 3*(self.medianFlux - sortedSamples[floor((1 - SIGNIFICANCE_LEVEL)*SAMPLES)])
+            sortedSamples = sorted(self.convolutedFlux[:FLUX_SAMPLES])
+            self.medianFlux = sortedSamples[floor(0.5*FLUX_SAMPLES)]
+            self.transitThreshold = self.medianFlux + 3*(self.medianFlux - sortedSamples[floor((1 - SIGNIFICANCE_LEVEL)*FLUX_SAMPLES)])
         return self.transitThreshold
     
     def getData(self):
