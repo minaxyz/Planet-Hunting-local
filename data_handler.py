@@ -27,7 +27,7 @@ class LocalDataHandler(AbstractDataHandler):
             self.load(dataID)
 
     def __initialiseSystemsDirectoryDict(self):
-        self.systemsDirectoryDict = {file.split('.')[0].upper():"Data/" + file for file in os.listdir("Data") if file.endswith((".tbl",".dat")) and "phaseFold" not in file
+        self.systemsDirectoryDict = {file.split('.')[0].upper():"Data/" + file for file in os.listdir("Data") if file.endswith((".tbl",".dat")) and "phaseFold" not in file and "TIC" not in file
                                 } | {file.split('_')[0].upper():"NewData/" + file for file in os.listdir("NewData") if file.endswith(".tbl")}
     
     def __initialiseStellarMassAndRadius(self):
