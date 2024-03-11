@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from numpy.polynomial.polynomial import Polynomial, polyval
+import inspect
+from numpy.polynomial.polynomial import Polynomial, polyval, polyder, polyroots
 from math import floor
 
 from data_handler import AbstractDataHandler, LocalDataHandler
@@ -139,9 +140,15 @@ class TransitDetector():
             return self.times[i], self.flux[i]
 
 class DataAnalyser():
-    def __init__(self, dataID, dataHandler:AbstractDataHandler=LocalDataHandler):
+    def __init__(self, dataID=None, dataHandler:AbstractDataHandler=LocalDataHandler):
+        if dataID is not None or not inspect.isclass(dataHandler):
+            self.load(dataID, dataHandler)
+        else:
+            self.times, self.flux, self.radius, self.mass, self.period, self.phase, self.transitLenth, self.transits, self.model, self.phaseFoldedTimes, self.phaseFoldedFlux = None, None, None, None, None, None, None, None, None, None, None
+        
 
-        self.dataHandler = dataHandler(dataID)
+    def load(self, dataID=None, dataHandler:AbstractDataHandler=LocalDataHandler):
+        self.dataHandler = dataHandler(dataID) if inspect.isclass(dataHandler) else dataHandler
         #Flux against Time data
         self.times, self.flux = self.dataHandler.getData()
 
@@ -154,10 +161,8 @@ class DataAnalyser():
 
         self.size = len(self.times)
         self.period = None
-        self.transitBound = None
         self.transitLenth = None
         self.phase = None
-        self.dt = min(self.times[1]-self.times[0], self.times[2]-self.times[1])
 
     def plot(self, plotType=""):
         match plotType:
@@ -237,17 +242,6 @@ class DataAnalyser():
         
         self.period, self.phase = estimatePeriodicSignal(peakSum, weightedPeakSum, nTransits, nSkippedTransits, skippedTransitsSum, skippedTransitsSquareSum)
 
-
-    def readNewData(self, dataID): # For @Szymon's funky data only
-        df=pd.read_table(dataID,comment='#', delim_whitespace=True,skiprows=136)
-        df.dropna(inplace=True) # This removes the NaNs from the data
-        x1,x2,x3,x4,x5,x6,x7,x8,x9,x10=(np.split(df.to_numpy(),10,1)) # Split the data frame into individual numpy arrays
-        time=x1 # Define a new time array
-        flux=x8 # Define a new flux array
-        return time, flux
-        '''We need a new plot function / calculations that use this module
-        instead of the default one. '''
-
     def __iter__(self):
         for handler in [x for x in LocalDataHandler() if x.dataID.startswith('KIC')]:
             yield DataAnalyser(dataHandler=handler)
@@ -278,7 +272,26 @@ class PhaseFoldedTransitModel():
                 self.min = root
         #Gets the coefficients of the polynomial model (used in evaluating the flux at a specified time in the __get_item__ function).
         self.coeffs = self.model.convert().coef
+        self.peakFlux, self.peakTime = None, None
 
+    def getPeak(self):
+        if self.peakFlux is None:
+            self.__initialisePeakValues()
+        return self.peakFlux
+    
+    def getPeakTime(self):
+        if self.peakTime is None:
+            self.__initialisePeakValues()
+        return self.peakTime
+
+    def __initialisePeakValues(self):
+        peakTimesArray = [x.real for x in polyroots(polyder(self.coeffs, 1)) if np.isreal(x)]
+        self.peakTime = peakTimesArray[0]
+        for peakTime in peakTimesArray[1:]:
+            if abs(peakTime) < abs(self.peakTime):
+                self.peakTime = peakTime
+        self.peakFlux = self[self.peakTime]
+            
     def getData(self):
         """Returns the phase-folded time and the model's corresponding estimated flux values as a tuple of time and flux. 
 

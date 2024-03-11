@@ -38,4 +38,4 @@ def timedTest(dataID, plotType=None):
 
 #KIC002571238 period = 9.286958783276173
 #timedTest("kplr002853093", "hist")
-print(LocalDataHandler("kplr002853093").getMass())
+print(LocalDataHandler("kplr002853093").getPlanetaryRadius())
