@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import formulas
 import numpy as np
 import inspect
 from numpy.polynomial.polynomial import Polynomial, polyval, polyder, polyroots
@@ -196,7 +197,7 @@ class DataAnalyser():
             self.model = PhaseFoldedTransitModel(*self.getPhaseFoldedData())
             self.transitLenth = self.model.max - self.model.min
         return self.model
-
+    
     def getOrbitalPeriod(self):
         if self.period is None:
             self.__calculateOrbitalPeriod()
@@ -213,6 +214,10 @@ class DataAnalyser():
             self.transitLenth = firstTransitEnd - firstTransitStart
         return self.phase
     
+    def getPlanetaryRadius(self):
+        return formulas.PlanetaryRadius(self.mass, self.getModel().getPeak())
+
+
     def __calculateOrbitalPeriod(self):
         """Uses a least squares sum method to calculate the orbital period, and improves the estimation of the phase.
         """

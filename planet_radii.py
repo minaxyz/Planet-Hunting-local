@@ -4,6 +4,11 @@ from time import perf_counter
 import matplotlib.pyplot as plt
 import numpy as np
 
+G = 6.6743e-11 #The universal gravitational constant (m^3 kg^-1 s^-2).
+SOLAR_MASS = 1.9885e30 #The volumetric mean radius of the sun (m).
+SOLAR_RADIUS = 6.957e8 #The mass of the sun (kg).
+EARTH_RADIUS = 6.378e6
+
 # peakFlux = []
 # stellar_radii = []
 # for dataAnalyser in DataAnalyser():
@@ -21,12 +26,13 @@ import numpy as np
 #     planetary_radii[planetary_radii.index(i)] = round(i,2)
 
 # print(planetary_radii)
-
+DataAnalyser('kplr002853093').plot('pm')
+print(DataAnalyser('kplr002853093').mass)
 print(DataAnalyser('kplr002853093').getModel().getPeak())
-print(LocalDataHandler())
 
-def getPlanetaryRadius(self):
-        r = self.radius*6.957e+8
-        flux = DataAnalyser().getModel().getPeak()
-        pr = r*(flux**(1/2))/6.378e+6
-        return pr
+def PlanetaryRadius(solar_radius, flux):
+    return (solar_radius*SOLAR_RADIUS*(abs(flux)**(1/2)))/EARTH_RADIUS
+
+print(PlanetaryRadius(1.2, 0.00457098))
+
+

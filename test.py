@@ -2,6 +2,7 @@ from data_handler import LocalDataHandler
 from data_analyser import DataAnalyser
 from time import perf_counter
 import matplotlib.pyplot as plt
+import formulas
 
 class Timing():
     def __init__(self, sinceLastOut=True, ms=True):
@@ -38,4 +39,5 @@ def timedTest(dataID, plotType=None):
 
 #KIC002571238 period = 9.286958783276173
 #timedTest("kplr002853093", "hist")
-print(LocalDataHandler("kplr002853093").getPlanetaryRadius())
+print(DataAnalyser("kplr002853093").getPlanetaryRadius())
+

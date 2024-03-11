@@ -3,6 +3,7 @@ import math
 G = 6.6743e-11 #The universal gravitational constant (m^3 kg^-1 s^-2).
 SOLAR_MASS = 1.9885e30 #The volumetric mean radius of the sun (m).
 SOLAR_RADIUS = 6.957e8 #The mass of the sun (kg).
+EARTH_RADIUS = 6.378e6 #The CONVERSION of metres to earth radii, to divide the radius in metres by.
 
 def stellarMass(stellarRadius, surfaceGravity):
     """
@@ -33,3 +34,6 @@ def semiMajorAxis2(orbitalPeriod, transitDuration):
 # Calculates the orbital inclination using the Star Radius, Planet Radius, Orbital Period and Transit Duration
 def planetOrbitalInclination(starRadius, planetRadius, orbitalPeriod, transitDuration):
     return math.acos((transitImpactParameter(starRadius,planetRadius, orbitalPeriod, transitDuration)*starRadius)/(semiMajorAxis2(orbitalPeriod, transitDuration)))
+
+def PlanetaryRadius(solar_radius, flux):
+    return (solar_radius*SOLAR_RADIUS*(abs(flux)**(1/2)))/EARTH_RADIUS
