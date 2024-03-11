@@ -248,6 +248,10 @@ class DataAnalyser():
         '''We need a new plot function / calculations that use this module
         instead of the default one. '''
 
+    def __iter__(self):
+        for handler in [x for x in LocalDataHandler() if x.dataID.startswith('KIC')]:
+            yield DataAnalyser(dataHandler=handler)
+
 class PhaseFoldedTransitModel():
     def __init__(self, phaseFoldedTimes, phaseFoldedFlux):
         """Creates a model for the phase-folded time-sorted transit data using polynomial interpolation.
