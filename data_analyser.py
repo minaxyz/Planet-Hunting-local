@@ -173,11 +173,13 @@ class TransitDetector():
             return self.times[i], self.convolutedFlux[i]
 
 class DataAnalyser():
+
     def __init__(self, dataID=None, dataHandler:AbstractDataHandler=LocalDataHandler):
         self.dataHandler = dataHandler(dataID) if dataID else dataHandler if not inspect.isclass(dataHandler) else None
         self.dataID = dataID or self.dataHandler and self.dataHandler.dataID
         #Flux against Time data
         self.times, self.flux = self.dataHandler.getData() if self.dataHandler is not None else (None, None)
+
         self.phaseFoldedTimes, self.phaseFoldedFlux = None, None
         self.transits = TransitDetector(self.times, self.flux) if self.dataHandler is not None else None
         self.model = None
@@ -308,6 +310,7 @@ class DataAnalyser():
         backtrack = max(self.period*SIGNIFICANCE_LEVEL, self.getTransitLength())
         recalibration = 2
         while nextTransitTimePredicted < lastTransit:
+
             nextTransitTimeFound = self.transits.findTransitPeak(nextTransitTimePredicted - backtrack, nextTransitTimePredicted + backtrack, transitThreshold=self.transitThreshold)
             if nextTransitTimeFound is None:
                 nSkippedTransits += 1
@@ -329,6 +332,21 @@ class DataAnalyser():
     def __iter__(self):
         for dataHandler in LocalDataHandler():
             yield DataAnalyser(dataHandler=dataHandler)
+
+
+    def readNewData(self, dataID): # For @Szymon's funky data only
+        df=pd.read_table(dataID,comment='#', delim_whitespace=True,skiprows=136)
+        df.dropna(inplace=True) # This removes the NaNs from the data
+        x1,x2,x3,x4,x5,x6,x7,x8,x9,x10=(np.split(df.to_numpy(),10,1)) # Split the data frame into individual numpy arrays
+        time=x1 # Define a new time array
+        flux=x8 # Define a new flux array
+        return time, flux
+        '''We need a new plot function / calculations that use this module
+        instead of the default one. '''
+
+    def __iter__(self):
+        for handler in [x for x in LocalDataHandler() if x.dataID.startswith('KIC')]:
+            yield DataAnalyser(dataHandler=handler)
 
 class PhaseFoldedTransitModel():
     def __init__(self, phaseFoldedTimes, phaseFoldedFlux):
