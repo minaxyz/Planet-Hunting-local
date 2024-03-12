@@ -27,8 +27,8 @@ class LocalDataHandler(AbstractDataHandler):
             self.load(dataID)
 
     def __initialiseSystemsDirectoryDict(self):
-        self.systemsDirectoryDict = {file.split('.')[0].upper():"Data/" + file for file in os.listdir("Data") if file.endswith((".tbl",".dat")) and "phaseFold" not in file}
-        self.systemsDirectoryDict |= {file.split('_')[0].upper():"NewData/" + file for file in os.listdir("NewData") if file.endswith(".tbl")}
+        self.systemsDirectoryDict = {file.split('.')[0].upper():"Data/" + file for file in os.listdir("Data") if file.endswith((".tbl",".dat")) and "phaseFold" not in file and "TIC" not in file
+                                } | {file.split('_')[0].upper():"NewData/" + file for file in os.listdir("NewData") if file.endswith(".tbl")}
     
     def __initialiseStellarMassAndRadius(self):
         f = PdfReader(open("Data/Stellar_Mass_Radius.pdf", 'rb'))
@@ -52,7 +52,7 @@ class LocalDataHandler(AbstractDataHandler):
                 self.times, self.flux = np.loadtxt(directory, unpack=True, skiprows=3, usecols=[1,2])
             elif directory.startswith("NewData"):
                 self.times, self.flux = np.loadtxt(directory, unpack=True, skiprows=136, usecols=[0,7])
-                self.removeInvalid()
+                self.__removeNANFluxValues()
 
                 lines = open(directory, 'r').readlines()
                 #Parsing the /RADIUS file attribute
@@ -63,10 +63,11 @@ class LocalDataHandler(AbstractDataHandler):
         except KeyError:
             raise Exception("INVALID DATA ID: System not found.")
 
-    def removeInvalid(self):
-        retainPos = [not np.isnan(flux) for flux in self.flux]
-        self.times = self.times[retainPos]
-        self.flux = self.flux[retainPos]
+    def __removeNANFluxValues(self):
+        nanValuesIndexes = [i for i, flux in enumerate(self.flux) if np.isnan(flux)]
+        if len(nanValuesIndexes) > 0:
+            self.times = np.delete(self.times, nanValuesIndexes)
+            self.flux = np.delete(self.flux, nanValuesIndexes)
 
     def getData(self):
         return self.times, self.flux
