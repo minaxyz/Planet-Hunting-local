@@ -11,8 +11,8 @@ class Timing():
         self.unit = 1000 if ms else 1
         self.unitPrefix = 'm'*ms + 's'
 
-    def out(self,label):
-        print(f"{label}: {((e := perf_counter()) - self.last)*self.unit} {self.unitPrefix}")
+    def out(self,label=None):
+        print(f"{label + ':' if label else ''} {((e := perf_counter()) - self.last)*self.unit} {self.unitPrefix}")
         if self.sinceLastOut:
             self.last = e
 
@@ -21,27 +21,31 @@ class Timing():
             self.out(label)
         print(f"Total: {(perf_counter() - self.s)*self.unit} {self.unitPrefix}")
 
-def timedTest(dataID, plotType=""):
+def timedTest(dataID, plotType=None):
     print(f"{dataID} results:")
     t = Timing(True, True)
     analyser = DataAnalyser(dataID)
     t.out("Initialisation")
+    transitLength = analyser.getTransitLength()
+    phase = analyser.getPhase()
     period = analyser.getOrbitalPeriod()
-    t.out("Period")
-    #m = analyser.getModel()
-    #t.out("Model")
-    #print(m.min, m.max)
-    print(f"{period = }")
+    t.out("Parameters")
+    print(f"{period = }, {phase = }, {transitLength = }")
     t.totalOut()
-    analyser.plot(plotType)
+    if plotType is not None:
+        analyser.plot(plotType)
 
-def fluxHistogram(dataID):
-    hangler = LocalDataHandler(dataID)
-    flux = hangler.getData()[1]
-    plt.figure()
-    plt.hist(flux, 100)
-    plt.show()
-
+def iterTest():
+    t = Timing(True, True)
+    periods = {}
+    print(f"{'Data ID':<15} | {'Period':<20} | {'Time'}")
+    for d in DataAnalyser():
+        periods[d.dataID] = d.getOrbitalPeriod()
+        print(f"{d.dataID:<15} | {periods[d.dataID]:<20} | ", end=" ")
+        t.out()
+    t.totalOut()
+    
 #KIC002571238 period = 9.286958783276173
-timedTest("kplr008414716", "s")
-#fluxHistogram("kplr002853093")
+#kplr002715135 period = 5.74771
+#timedTest("kplr002715135", "pm")
+iterTest()
