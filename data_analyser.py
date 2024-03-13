@@ -333,21 +333,6 @@ class DataAnalyser():
         for dataHandler in LocalDataHandler():
             yield DataAnalyser(dataHandler=dataHandler)
 
-
-    def readNewData(self, dataID): # For @Szymon's funky data only
-        df=pd.read_table(dataID,comment='#', delim_whitespace=True,skiprows=136)
-        df.dropna(inplace=True) # This removes the NaNs from the data
-        x1,x2,x3,x4,x5,x6,x7,x8,x9,x10=(np.split(df.to_numpy(),10,1)) # Split the data frame into individual numpy arrays
-        time=x1 # Define a new time array
-        flux=x8 # Define a new flux array
-        return time, flux
-        '''We need a new plot function / calculations that use this module
-        instead of the default one. '''
-
-    def __iter__(self):
-        for handler in [x for x in LocalDataHandler() if x.dataID.startswith('KIC')]:
-            yield DataAnalyser(dataHandler=handler)
-
 class PhaseFoldedTransitModel():
     def __init__(self, phaseFoldedTimes, phaseFoldedFlux):
         """Creates a model for the phase-folded time-sorted transit data using polynomial interpolation.
