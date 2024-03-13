@@ -10,13 +10,13 @@ from data_handler import AbstractDataHandler, LocalDataHandler
 from utils import estimatePeriodicSignal
 
 ##Transit Detection Constants
-FLUX_SAMPLES = 600
+FLUX_SAMPLES = 1000
 SIGNIFICANCE_LEVEL = 0.05 #Determines the transit bound
 MINIMUM_PERIOD = 0.241842217 #Minimum period used to determine the transit detector uniform convolution factor. Sourced from the NASA exoplanet archive.
 
 ##Transit Analysis Constants
 #Transit Calibration Constants
-TRANSIT_SAMPLES = 20 #Number of samples to complete per iteration.
+TRANSIT_SAMPLES = 30 #Number of samples to complete per iteration.
 TRANSIT_THRESHOLD_ITERATION_SCALING = 0.75 #The scaling applied to the threshold after each iteration. Must be between 0 and 1.
 MINIMUM_TRANSIT_THRESHOLD = 0.5 #Determines the maximum number of recursion of calibration (max recursion depth = ceil(log_TRANSIT_THRESHOLD_ITERATION_SCALING(MINIMUM_TRANSIT_THRESHOLD))).
 """Determines the strictness in validating a transit (Higher -> Higher strictness), must be between 0 and 1, higher than ACCEPTANCE_LEVEL.
@@ -25,6 +25,7 @@ ACCEPTANCE_LEVEL = 0.8
 """Determines the strictness in rejecting a transit (Lower -> Higher strictness), must be between 0 and 1, lower than REJECTION_LEVEL.
 Currently, rejects a transit after 0 passes and 3 fails, or rejected if below 20% passes. (#Fails no passes to reject = (1/REJECTION_LEVEL) - 2"""
 REJECTION_LEVEL = 0.2
+SEARCH_OFFSET = 0.075
 
 def plot(*plots):
     plt.figure()
@@ -251,7 +252,7 @@ class DataAnalyser():
         return self.phase
     
     def getPlanetaryRadius(self):
-        return formulas.PlanetaryRadius(self.mass, self.getModel().getPeak())
+        return formulas.planetaryRadius(self.mass, self.getModel().getPeak())
     
     def __calibrate(self, transitThreshold=1, timeStart=None, timeEnd=None):
         """Initialises the period.
@@ -312,7 +313,7 @@ class DataAnalyser():
         nTransits = 1
         peakSum, weightedPeakSum = self.phase, 0
         nSkippedTransits, skippedTransitsSum, skippedTransitsSquareSum = 0, 0, 0
-        backtrack = max(self.period*SIGNIFICANCE_LEVEL, self.getTransitLength())
+        backtrack = max(self.period*SEARCH_OFFSET, self.getTransitLength())
         recalibration = 2
         while nextTransitTimePredicted < lastTransit:
 
@@ -351,7 +352,9 @@ class PhaseFoldedTransitModel():
         self.phaseFoldedTimes, self.phaseFoldedFlux = phaseFoldedTimes, phaseFoldedFlux
         self.transitDetector = TransitDetector(phaseFoldedTimes, phaseFoldedFlux, False)
         #Finds the transit bounds to create the interpolated model from.
-        self.min, peak, self.max = self.transitDetector.findTransitBounds(0)
+        self.min, peak, self.max = self.transitDetector.findTransitBounds(0, transitThreshold=0.5)
+        if self.min is None or self.max is None:
+            self.min, peak, self.max, self.transitDetector.findTransitBounds(0, reverse=True, transitThreshold=0.5)
         #Creates a polynomial to fit the phase folded transit.
         timeCFluxInterval = self.transitDetector[self.min:self.max]
         self.model = Polynomial.fit(*timeCFluxInterval, 4)

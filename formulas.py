@@ -35,5 +35,5 @@ def semiMajorAxis2(orbitalPeriod, transitDuration):
 def planetOrbitalInclination(starRadius, planetRadius, orbitalPeriod, transitDuration):
     return math.acos((transitImpactParameter(starRadius,planetRadius, orbitalPeriod, transitDuration)*starRadius)/(semiMajorAxis2(orbitalPeriod, transitDuration)))
 
-def PlanetaryRadius(solar_radius, flux):
+def planetaryRadius(solar_radius, flux):
     return (solar_radius*SOLAR_RADIUS*(abs(flux)**(1/2)))/EARTH_RADIUS
