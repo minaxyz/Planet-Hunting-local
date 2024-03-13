@@ -2,6 +2,7 @@ from data_handler import LocalDataHandler
 from data_analyser import DataAnalyser
 from time import perf_counter
 import matplotlib.pyplot as plt
+import formulas
 
 class Timing():
     def __init__(self, sinceLastOut=True, ms=True):
@@ -29,23 +30,30 @@ def timedTest(dataID, plotType=None):
     transitLength = analyser.getTransitLength()
     phase = analyser.getPhase()
     period = analyser.getOrbitalPeriod()
+    peak = analyser.getModel().getPeak()
     t.out("Parameters")
-    print(f"{period = }, {phase = }, {transitLength = }")
+    print(f"{period = }, {phase = }, {transitLength = }, {peak = }")
     t.totalOut()
     if plotType is not None:
         analyser.plot(plotType)
 
 def iterTest():
     t = Timing(True, True)
-    periods = {}
-    print(f"{'Data ID':<15} | {'Period':<20} | {'Time'}")
+    failed = []
+    print(f"{'Data ID':<15} | {'Period':<20} | {'Planetary Radius':<20} | {'Time'}")
     for d in DataAnalyser():
-        periods[d.dataID] = d.getOrbitalPeriod()
-        print(f"{d.dataID:<15} | {periods[d.dataID]:<20} | ", end=" ")
-        t.out()
+        try:
+            print(f"{d.dataID:<15} | {d.getOrbitalPeriod():<20} | {d.getPlanetaryRadius():<20} | ", end=" ")
+            t.out()
+        except Exception:
+            failed.append(d.dataID)
+    if failed:
+        print("Failed:")
+        for dataID in failed:
+            print(dataID)
     t.totalOut()
     
 #KIC002571238 period = 9.286958783276173
 #kplr002715135 period = 5.74771
-#timedTest("kplr002715135", "pm")
-iterTest()
+timedTest("KPLR009266431", "n")
+#iterTest()

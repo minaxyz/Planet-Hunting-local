@@ -1,6 +1,8 @@
 import matplotlib.pyplot as plt
+import formulas
 import numpy as np
-from numpy.polynomial.polynomial import Polynomial, polyval
+import inspect
+from numpy.polynomial.polynomial import Polynomial, polyval, polyder, polyroots
 from math import floor
 import inspect
 
@@ -8,13 +10,13 @@ from data_handler import AbstractDataHandler, LocalDataHandler
 from utils import estimatePeriodicSignal
 
 ##Transit Detection Constants
-FLUX_SAMPLES = 600
-SIGNIFICANCE_LEVEL = 0.05 #Determines the transit bound
+FLUX_SAMPLES = 1000
+SIGNIFICANCE_LEVEL = 0.05 #Determines the transit threshold
 MINIMUM_PERIOD = 0.241842217 #Minimum period used to determine the transit detector uniform convolution factor. Sourced from the NASA exoplanet archive.
 
 ##Transit Analysis Constants
 #Transit Calibration Constants
-TRANSIT_SAMPLES = 20 #Number of samples to complete per iteration.
+TRANSIT_SAMPLES = 30 #Number of samples to complete per iteration.
 TRANSIT_THRESHOLD_ITERATION_SCALING = 0.75 #The scaling applied to the threshold after each iteration. Must be between 0 and 1.
 MINIMUM_TRANSIT_THRESHOLD = 0.5 #Determines the maximum number of recursion of calibration (max recursion depth = ceil(log_TRANSIT_THRESHOLD_ITERATION_SCALING(MINIMUM_TRANSIT_THRESHOLD))).
 """Determines the strictness in validating a transit (Higher -> Higher strictness), must be between 0 and 1, higher than ACCEPTANCE_LEVEL.
@@ -23,6 +25,8 @@ ACCEPTANCE_LEVEL = 0.8
 """Determines the strictness in rejecting a transit (Lower -> Higher strictness), must be between 0 and 1, lower than REJECTION_LEVEL.
 Currently, rejects a transit after 0 passes and 3 fails, or rejected if below 20% passes. (#Fails no passes to reject = (1/REJECTION_LEVEL) - 2"""
 REJECTION_LEVEL = 0.2
+##Orbital Period Calculation Constants
+SEARCH_OFFSET = 0.09 #Determines the interval to search for the transit.
 
 def plot(*plots):
     plt.figure()
@@ -173,11 +177,13 @@ class TransitDetector():
             return self.times[i], self.convolutedFlux[i]
 
 class DataAnalyser():
+
     def __init__(self, dataID=None, dataHandler:AbstractDataHandler=LocalDataHandler):
         self.dataHandler = dataHandler(dataID) if dataID else dataHandler if not inspect.isclass(dataHandler) else None
         self.dataID = dataID or self.dataHandler and self.dataHandler.dataID
         #Flux against Time data
         self.times, self.flux = self.dataHandler.getData() if self.dataHandler is not None else (None, None)
+
         self.phaseFoldedTimes, self.phaseFoldedFlux = None, None
         self.transits = TransitDetector(self.times, self.flux) if self.dataHandler is not None else None
         self.model = None
@@ -229,7 +235,7 @@ class DataAnalyser():
             self.model = PhaseFoldedTransitModel(*self.getPhaseFoldedData())
             self.transitLength = self.model.max - self.model.min
         return self.model
-
+    
     def getOrbitalPeriod(self):
         if not self.ACCURATE_PERIOD_FLAG:
             self.__calculateOrbitalPeriod()
@@ -245,6 +251,9 @@ class DataAnalyser():
         if self.phase is None:
             self.__calibrate()
         return self.phase
+    
+    def getPlanetaryRadius(self):
+        return formulas.planetaryRadius(self.mass, self.getModel().getPeak())
     
     def __calibrate(self, transitThreshold=1, timeStart=None, timeEnd=None):
         """Initialises the period.
@@ -295,7 +304,7 @@ class DataAnalyser():
         else: #Identifies if there is a lower valid period.
             self.__calibrate(transitThreshold*TRANSIT_THRESHOLD_ITERATION_SCALING, self.phase, self.phase + 2*self.period)
             self.CALIBRATION_FLAG = True
-    
+
     def __calculateOrbitalPeriod(self):
         """Uses a least squares sum method to calculate the orbital period, and improves the estimation of the phase.
         """
@@ -305,9 +314,10 @@ class DataAnalyser():
         nTransits = 1
         peakSum, weightedPeakSum = self.phase, 0
         nSkippedTransits, skippedTransitsSum, skippedTransitsSquareSum = 0, 0, 0
-        backtrack = max(self.period*SIGNIFICANCE_LEVEL, self.getTransitLength())
+        backtrack = max(self.period*self.transitThreshold*SEARCH_OFFSET, self.getTransitLength())
         recalibration = 2
         while nextTransitTimePredicted < lastTransit:
+
             nextTransitTimeFound = self.transits.findTransitPeak(nextTransitTimePredicted - backtrack, nextTransitTimePredicted + backtrack, transitThreshold=self.transitThreshold)
             if nextTransitTimeFound is None:
                 nSkippedTransits += 1
@@ -343,7 +353,9 @@ class PhaseFoldedTransitModel():
         self.phaseFoldedTimes, self.phaseFoldedFlux = phaseFoldedTimes, phaseFoldedFlux
         self.transitDetector = TransitDetector(phaseFoldedTimes, phaseFoldedFlux, False)
         #Finds the transit bounds to create the interpolated model from.
-        self.min, peak, self.max = self.transitDetector.findTransitBounds(0)
+        self.min, peak, self.max = self.transitDetector.findTransitBounds(0, transitThreshold=0.5)
+        if self.min is None or self.max is None:
+            self.min, peak, self.max, self.transitDetector.findTransitBounds(0, reverse=True, transitThreshold=0.5)
         #Creates a polynomial to fit the phase folded transit.
         timeCFluxInterval = self.transitDetector[self.min:self.max]
         self.model = Polynomial.fit(*timeCFluxInterval, 4)
@@ -356,7 +368,26 @@ class PhaseFoldedTransitModel():
                 self.min = root
         #Gets the coefficients of the polynomial model (used in evaluating the flux at a specified time in the __get_item__ function).
         self.coeffs = self.model.convert().coef
+        self.peakFlux, self.peakTime = None, None
 
+    def getPeak(self):
+        if self.peakFlux is None:
+            self.__initialisePeakValues()
+        return self.peakFlux
+    
+    def getPeakTime(self):
+        if self.peakTime is None:
+            self.__initialisePeakValues()
+        return self.peakTime
+
+    def __initialisePeakValues(self):
+        peakTimesArray = [x.real for x in polyroots(polyder(self.coeffs, 1)) if np.isreal(x)]
+        self.peakTime = peakTimesArray[0]
+        for peakTime in peakTimesArray[1:]:
+            if abs(peakTime) < abs(self.peakTime):
+                self.peakTime = peakTime
+        self.peakFlux = self[self.peakTime]
+            
     def getData(self):
         """Returns the phase-folded time and the model's corresponding estimated flux values as a tuple of time and flux. 
 

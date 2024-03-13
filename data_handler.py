@@ -77,7 +77,7 @@ class LocalDataHandler(AbstractDataHandler):
 
     def getMass(self):
         return self.mass
-    
+
     def __iter__(self):
         for dataID in self.systemsDirectoryDict.keys():
             self.load(dataID)
