@@ -179,15 +179,6 @@ class DataAnalyser():
     def __init__(self, dataID=None, dataHandler:AbstractDataHandler=LocalDataHandler):
         self.dataHandler = dataHandler(dataID) if dataID else dataHandler if not inspect.isclass(dataHandler) else None
         self.dataID = dataID or self.dataHandler and self.dataHandler.dataID
-    def __init__(self, dataID=None, dataHandler:AbstractDataHandler=LocalDataHandler):
-        if dataID is not None or not inspect.isclass(dataHandler):
-            self.load(dataID, dataHandler)
-        else:
-            self.times, self.flux, self.radius, self.mass, self.period, self.phase, self.transitLenth, self.transits, self.model, self.phaseFoldedTimes, self.phaseFoldedFlux = None, None, None, None, None, None, None, None, None, None, None
-        
-
-    def load(self, dataID=None, dataHandler:AbstractDataHandler=LocalDataHandler):
-        self.dataHandler = dataHandler(dataID) if inspect.isclass(dataHandler) else dataHandler
         #Flux against Time data
         self.times, self.flux = self.dataHandler.getData() if self.dataHandler is not None else (None, None)
 
@@ -202,7 +193,6 @@ class DataAnalyser():
         self.size = len(self.times) if self.dataHandler is not None else None
         self.period = None
         self.transitLength = None
-        self.transitLenth = None
         self.phase = None
 
     def plot(self, plotType=""):
@@ -260,6 +250,9 @@ class DataAnalyser():
             self.__calibrate()
         return self.phase
     
+    def getPlanetaryRadius(self):
+        return formulas.PlanetaryRadius(self.mass, self.getModel().getPeak())
+    
     def __calibrate(self, transitThreshold=1, timeStart=None, timeEnd=None):
         """Initialises the period.
         """
@@ -309,11 +302,6 @@ class DataAnalyser():
         else: #Identifies if there is a lower valid period.
             self.__calibrate(transitThreshold*TRANSIT_THRESHOLD_ITERATION_SCALING, self.phase, self.phase + 2*self.period)
             self.CALIBRATION_FLAG = True
-    
-    
-    def getPlanetaryRadius(self):
-        return formulas.PlanetaryRadius(self.mass, self.getModel().getPeak())
-
 
     def __calculateOrbitalPeriod(self):
         """Uses a least squares sum method to calculate the orbital period, and improves the estimation of the phase.
@@ -349,10 +337,6 @@ class DataAnalyser():
     def __iter__(self):
         for dataHandler in LocalDataHandler():
             yield DataAnalyser(dataHandler=dataHandler)
-
-    def __iter__(self):
-        for handler in [x for x in LocalDataHandler() if x.dataID.startswith('KIC')]:
-            yield DataAnalyser(dataHandler=handler)
 
 class PhaseFoldedTransitModel():
     def __init__(self, phaseFoldedTimes, phaseFoldedFlux):
