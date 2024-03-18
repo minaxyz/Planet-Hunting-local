@@ -31,8 +31,10 @@ def timedTest(dataID, plotType=None):
     phase = analyser.getPhase()
     period = analyser.getOrbitalPeriod()
     peak = analyser.getModel().getPeak()
+    threshold = analyser.transits.getTransitThreshold()
     t.out("Parameters")
-    print(f"{period = }, {phase = }, {transitLength = }, {peak = }")
+    print(f"{period = }, {phase = }, {transitLength = }, {peak = }, {threshold = }")
+    print(analyser.transits.getAnomalousRegions())
     t.totalOut()
     if plotType is not None:
         analyser.plot(plotType)
@@ -51,9 +53,12 @@ def iterTest():
         print("Failed:")
         for dataID in failed:
             print(dataID)
+    else:
+        print("No fails.")
     t.totalOut()
     
 #KIC002571238 period = 9.286958783276173
 #kplr002715135 period = 5.74771
-timedTest("KPLR009266431", "n")
+#KPLR009266431 period = 18.3963
+timedTest("KIC008359498", "pm")
 #iterTest()
