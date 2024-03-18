@@ -16,7 +16,7 @@ def semiMajorAxis1(StarMass, orbitalPeriod, OrbitalRadius):
 
 # Calculates the semi major axis using the Orbital Period and Transit Duration
 def semiMajorAxis2(orbitalPeriod, transitDuration):
-    return round((2*math.pi*transitDuration)/(orbitalPeriod),2)
+    return round(((6.67*(10**-11)*StarMass*(orbitalPeriod**2))/(4*math.pi))**1/3,2)
 
 # Calculates the orbital inclination using the Star Radius, Planet Radius, Orbital Period and Transit Duration
 def planetOrbitalInclination(stellarRadius,planetaryRadius, orbitalPeriod, transitDuration):
