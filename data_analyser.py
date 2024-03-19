@@ -15,7 +15,7 @@ SIGNIFICANCE_LEVEL = 0.05 #Determines the transit threshold
 MINIMUM_PERIOD = 0.241842217 #Minimum period used to determine the transit detector uniform convolution factor. Sourced from the NASA exoplanet archive.
 #Anomalous Region Constants
 ANOMALOUS_REGION_SEARCH_OFFSET = 1 #The area to search for anomalous points (in MINIMUM_PERIODS).
-ANOMALOUS_CONCENTRATION_THRESHOLD = 0.01 #The concentration of anomalous points for it to be considered.
+ANOMALOUS_CONCENTRATION_THRESHOLD = 0.1 #The concentration of anomalous points for it to be considered.
 TIME_TO_SEARCH_FOR_ANOMALOUS_REGIONS = 10
 
 ##Transit Analysis Constants
@@ -221,14 +221,15 @@ class TransitDetector():
         searchOffset = floor(MINIMUM_PERIOD/(2*self.dt)) + 1
         start -= searchOffset
         end += searchOffset
-        i = np.searchsorted(self.anomalousRegions, start)
-        if i == len(self.anomalousRegions):
-            self.anomalousRegions += [start, end]
-        elif self.anomalousRegions[i] != start:
-            if self.anomalousRegions[i + 1] < end:
-                self.anomalousRegions[i] = start
-            else:
-                self.anomalousRegions[i:i] += [start, end]
+        startI = np.searchsorted(self.anomalousRegions, start)
+        endI = np.searchsorted(self.anomalousRegions, end)
+        if startI == len(self.anomalousRegions) or endI == 0: #Needs to be placed at the start or end of transit data.
+            self.anomalousRegions[startI:startI] += [start, end]
+        else:
+            #Resolution of potentially overlapping regions.
+            isBoundOutsideRegion = lambda boundI : (boundI & 1) == 0 #If bound in of an even index, it is outside a region.
+            self.anomalousRegions[startI:endI] = [bound for bound, boundI in zip([start, end], [startI, endI]) if isBoundOutsideRegion(boundI)]
+
     
     def getAnomalousRegions(self):
         return [[self.times[x] for x in self.anomalousRegions[i:i+2]] for i in range(0,len(self.anomalousRegions),2)]

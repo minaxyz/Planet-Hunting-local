@@ -60,5 +60,5 @@ def iterTest():
 #KIC002571238 period = 9.286958783276173
 #kplr002715135 period = 5.74771
 #KPLR009266431 period = 18.3963
-timedTest("KIC008359498", "pm")
-#iterTest()
+#timedTest("KPLR009266431", "n")
+iterTest()
