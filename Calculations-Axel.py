@@ -10,9 +10,9 @@ def transitImpactParameter(stellarRadius,planetaryRadius, orbitalPeriod, transit
     return (((((stellarRadius-planetaryRadius)**2)-((SemiMajorAxis2(orbitalPeriod, transitDuration)*math.sin((transitDuration * math.pi)/(orbitalPeriod)))**2))**0.5)/(stellarRadius))
 
 # Calculates the semi major axis using the Star Mass, Orbital Period and Orbital Radius
-def semiMajorAxis1(StarMass, orbitalPeriod, OrbitalRadius):
+def semiMajorAxis1(StarMass, orbitalPeriod):
     #returned in metres
-    return round((6.67*(10**-11)*StarMass*(orbitalPeriod**2))/((2*OrbitalRadius*math.pi)**2),2)
+    return round((6.67*(10**-11)*StarMass*(orbitalPeriod**2))/((2*math.pi)**2)**1/3,2)
 
 # Calculates the semi major axis using the Orbital Period and Transit Duration
 def semiMajorAxis2(orbitalPeriod, transitDuration):
