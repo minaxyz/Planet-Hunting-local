@@ -8,13 +8,13 @@ from data_handler import AbstractDataHandler, LocalDataHandler
 from utils import estimatePeriodicSignal
 
 ##Transit Detection Constants
-FLUX_SAMPLES = 600
+FLUX_SAMPLES = 1000
 SIGNIFICANCE_LEVEL = 0.05 #Determines the transit bound
 MINIMUM_PERIOD = 0.241842217 #Minimum period used to determine the transit detector uniform convolution factor. Sourced from the NASA exoplanet archive.
 
 ##Transit Analysis Constants
 #Transit Calibration Constants
-TRANSIT_SAMPLES = 20 #Number of samples to complete per iteration.
+TRANSIT_SAMPLES = 30 #Number of samples to complete per iteration.
 TRANSIT_THRESHOLD_ITERATION_SCALING = 0.75 #The scaling applied to the threshold after each iteration. Must be between 0 and 1.
 MINIMUM_TRANSIT_THRESHOLD = 0.5 #Determines the maximum number of recursion of calibration (max recursion depth = ceil(log_TRANSIT_THRESHOLD_ITERATION_SCALING(MINIMUM_TRANSIT_THRESHOLD))).
 """Determines the strictness in validating a transit (Higher -> Higher strictness), must be between 0 and 1, higher than ACCEPTANCE_LEVEL.
@@ -23,6 +23,7 @@ ACCEPTANCE_LEVEL = 0.8
 """Determines the strictness in rejecting a transit (Lower -> Higher strictness), must be between 0 and 1, lower than REJECTION_LEVEL.
 Currently, rejects a transit after 0 passes and 3 fails, or rejected if below 20% passes. (#Fails no passes to reject = (1/REJECTION_LEVEL) - 2"""
 REJECTION_LEVEL = 0.2
+SEARCH_OFFSET = 0.075
 
 def plot(*plots):
     plt.figure()
@@ -248,6 +249,12 @@ class DataAnalyser():
             self.__calibrate()
         return self.phase
     
+<<<<<<<<< Temporary merge branch 1
+    def getPlanetaryRadius(self):
+        return formulas.PlanetaryRadius(self.mass, self.getModel().getPeak())
+
+
+=========
     def __calibrate(self, transitThreshold=1, timeStart=None, timeEnd=None):
         """Initialises the period.
         """
@@ -298,6 +305,7 @@ class DataAnalyser():
             self.__calibrate(transitThreshold*TRANSIT_THRESHOLD_ITERATION_SCALING, self.phase, self.phase + 2*self.period)
             self.CALIBRATION_FLAG = True
     
+>>>>>>>>> Temporary merge branch 2
     def __calculateOrbitalPeriod(self):
         """Uses a least squares sum method to calculate the orbital period, and improves the estimation of the phase.
         """
@@ -307,7 +315,7 @@ class DataAnalyser():
         nTransits = 1
         peakSum, weightedPeakSum = self.phase, 0
         nSkippedTransits, skippedTransitsSum, skippedTransitsSquareSum = 0, 0, 0
-        backtrack = max(self.period*SIGNIFICANCE_LEVEL, self.getTransitLength())
+        backtrack = max(self.period*SEARCH_OFFSET, self.getTransitLength())
         recalibration = 2
         while nextTransitTimePredicted < lastTransit:
 
@@ -333,21 +341,6 @@ class DataAnalyser():
         for dataHandler in LocalDataHandler():
             yield DataAnalyser(dataHandler=dataHandler)
 
-
-    def readNewData(self, dataID): # For @Szymon's funky data only
-        df=pd.read_table(dataID,comment='#', delim_whitespace=True,skiprows=136)
-        df.dropna(inplace=True) # This removes the NaNs from the data
-        x1,x2,x3,x4,x5,x6,x7,x8,x9,x10=(np.split(df.to_numpy(),10,1)) # Split the data frame into individual numpy arrays
-        time=x1 # Define a new time array
-        flux=x8 # Define a new flux array
-        return time, flux
-        '''We need a new plot function / calculations that use this module
-        instead of the default one. '''
-
-    def __iter__(self):
-        for handler in [x for x in LocalDataHandler() if x.dataID.startswith('KIC')]:
-            yield DataAnalyser(dataHandler=handler)
-
 class PhaseFoldedTransitModel():
     def __init__(self, phaseFoldedTimes, phaseFoldedFlux):
         """Creates a model for the phase-folded time-sorted transit data using polynomial interpolation.
@@ -361,7 +354,9 @@ class PhaseFoldedTransitModel():
         self.phaseFoldedTimes, self.phaseFoldedFlux = phaseFoldedTimes, phaseFoldedFlux
         self.transitDetector = TransitDetector(phaseFoldedTimes, phaseFoldedFlux, False)
         #Finds the transit bounds to create the interpolated model from.
-        self.min, peak, self.max = self.transitDetector.findTransitBounds(0)
+        self.min, peak, self.max = self.transitDetector.findTransitBounds(0, transitThreshold=0.5)
+        if self.min is None or self.max is None:
+            self.min, peak, self.max, self.transitDetector.findTransitBounds(0, reverse=True, transitThreshold=0.5)
         #Creates a polynomial to fit the phase folded transit.
         timeCFluxInterval = self.transitDetector[self.min:self.max]
         self.model = Polynomial.fit(*timeCFluxInterval, 4)
