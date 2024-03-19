@@ -39,10 +39,10 @@ def timedTest(dataID, plotType=None):
 def iterTest():
     t = Timing(True, True)
     failed = []
-    print(f"{'Data ID':<15} | {'Period':<20} | {'Planetary Radius':<20} | {'Time'}")
+    print(f"{'Data ID':<15} | {'Period':<20} | {'Planetary Radius':<20} | {'Semi Major Axis':<20} | {'Impact Parameter':<20} | {'Orbital Inclination':<20} | {'Time'}")
     for d in DataAnalyser():
         try:
-            print(f"{d.dataID:<15} | {d.getOrbitalPeriod():<20} | {d.getPlanetaryRadius():<20} | ", end=" ")
+            print(f"{d.dataID:<15} | {d.getOrbitalPeriod():<20} | {d.getPlanetaryRadius():<20} {d.getSemiMajorAxis():<20} | {d.getImpactParameter():<20} | {d.getOrbitalInclination():<20} | ", end=" ")
             t.out()
         except Exception:
             failed.append(d.dataID)
@@ -52,5 +52,10 @@ def iterTest():
     
 #KIC002571238 period = 9.286958783276173
 #kplr002715135 period = 5.74771
-#timedTest("KPLR009266431", "c")
+#timedTest("KPLR002715135", "c")
 iterTest()
+
+
+
+# | {'Semi Major Axis':<20} | {'Impact Parameter':<20} | {'Orbital Inclination':<20} 
+# | {d.getSemiMajorAxis():<20} | {d.getImpactParameter():<20} | {d.getOrbitalInclination():<20} 

@@ -254,17 +254,14 @@ class DataAnalyser():
     def getPlanetaryRadius(self):
         return formulas.planetaryRadius(self.mass, self.getModel().getPeak())
     
-    def getSemiMajorAxis1(self):
-        return formulas.semiMajorAxis2(self.getOrbitalPeriod(), self.getTransitLength())
+    def getSemiMajorAxis(self):
+        return formulas.semiMajorAxis1(self.mass, self.getOrbitalPeriod())
 
     def getImpactParameter(self):
         return formulas.transitImpactParameter(self.radius, self.getPlanetaryRadius(), self.getOrbitalPeriod(), self.getTransitLength())
 
     def getOrbitalInclination(self):
-        formulas.planetOrbitalInclination(self.radius, self.getPlanetaryRadius(), self.getOrbitalPeriod(), self.getTransitLength())
-
-    def getOrbitalRadius(self):
-        pass
+        return formulas.planetOrbitalInclination(self.radius, self.getPlanetaryRadius(), self.mass, self.getOrbitalPeriod(), self.getTransitLength())
     
     def __calibrate(self, transitThreshold=1, timeStart=None, timeEnd=None):
         """Initialises the period.
