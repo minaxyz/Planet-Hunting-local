@@ -32,8 +32,10 @@ def timedTest(dataID, plotType=None):
     period = analyser.getOrbitalPeriod()
     peak = analyser.getModel().getPeak()
     threshold = analyser.transits.getTransitThreshold()
+    orbitalInclination = analyser.getOrbitalInclination()
+    semiMajorAxis = analyser.getSemiMajorAxis()
     t.out("Parameters")
-    print(f"{period = }, {phase = }, {transitLength = }, {peak = }, {threshold = }")
+    print(f"{period = }, {phase = }, {transitLength = }, {peak = }, {threshold = }, {orbitalInclination = }, {semiMajorAxis = }")
     print(analyser.transits.getAnomalousRegions())
     t.totalOut()
     if plotType is not None:
@@ -42,23 +44,26 @@ def timedTest(dataID, plotType=None):
 def iterTest():
     t = Timing(True, True)
     failed = []
-    print(f"{'Data ID':<15} | {'Period':<20} | {'Planetary Radius':<20} | {'Time'}")
+    i = 0
+    print(f"{'N':<6} | {'Data ID':<15} | {'Period':<20} | {'Planetary Radius':<20} | {'Semi Major Axis':<20} | {'Impact Parameter':<20} | {'Orbital Inclination':<20} | {'Time'}")
     for d in DataAnalyser():
+        i += 1
         try:
-            print(f"{d.dataID:<15} | {d.getOrbitalPeriod():<20} | {d.getPlanetaryRadius():<20} | ", end=" ")
+            print(f"{i:<6} | {d.dataID:<15} | {d.getOrbitalPeriod():<20} | {d.getPlanetaryRadius():<20} | {d.getSemiMajorAxis():<20} | {d.getImpactParameter():<20} | {d.getOrbitalInclination():<20} |", end=" ")
             t.out()
         except Exception:
             failed.append(d.dataID)
     if failed:
-        print("Failed:")
+        print(f"Failed: {len(failed)}/{i}")
         for dataID in failed:
             print(dataID)
     else:
-        print("No fails.")
+        print(f"No fails. 0/{i}")
     t.totalOut()
-    
 #KIC002571238 period = 9.286958783276173
 #kplr002715135 period = 5.74771
 #KPLR009266431 period = 18.3963
+#KPLR012735740
 #timedTest("KPLR009266431", "n")
-iterTest()
+timedTest("KPLR011189311", "c")
+#iterTest()
