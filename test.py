@@ -32,8 +32,10 @@ def timedTest(dataID, plotType=None):
     period = analyser.getOrbitalPeriod()
     peak = analyser.getModel().getPeak()
     threshold = analyser.transits.getTransitThreshold()
+    orbitalInclination = analyser.getOrbitalInclination()
+    semiMajorAxis = analyser.getSemiMajorAxis()
     t.out("Parameters")
-    print(f"{period = }, {phase = }, {transitLength = }, {peak = }, {threshold = }")
+    print(f"{period = }, {phase = }, {transitLength = }, {peak = }, {threshold = }, {orbitalInclination = }, {semiMajorAxis = }")
     print(analyser.transits.getAnomalousRegions())
     t.totalOut()
     if plotType is not None:
@@ -45,7 +47,7 @@ def iterTest():
     print(f"{'Data ID':<15} | {'Period':<20} | {'Planetary Radius':<20} | {'Semi Major Axis':<20} | {'Impact Parameter':<20} | {'Orbital Inclination':<20} | {'Time'}")
     for d in DataAnalyser():
         try:
-            print(f"{d.dataID:<15} | {d.getOrbitalPeriod():<20} | {d.getPlanetaryRadius():<20} | ", end=" ")
+            print(f"{d.dataID:<15} | {d.getOrbitalPeriod():<20} | {d.getPlanetaryRadius():<20} | {d.getSemiMajorAxis():<20} | {d.getImpactParameter():<20} | {d.getOrbitalInclination():<20} |", end=" ")
             t.out()
         except Exception:
             failed.append(d.dataID)
@@ -61,10 +63,5 @@ def iterTest():
 #kplr002715135 period = 5.74771
 #KPLR009266431 period = 18.3963
 #timedTest("KPLR009266431", "n")
-#timedTest("KPLR002715135", "c")
+#timedTest("KIC007950644", "pm")
 iterTest()
-
-
-
-# | {'Semi Major Axis':<20} | {'Impact Parameter':<20} | {'Orbital Inclination':<20} 
-# | {d.getSemiMajorAxis():<20} | {d.getImpactParameter():<20} | {d.getOrbitalInclination():<20} 

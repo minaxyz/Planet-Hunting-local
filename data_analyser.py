@@ -329,7 +329,7 @@ class DataAnalyser():
         return formulas.planetaryRadius(self.mass, self.getModel().getPeak())
     
     def getSemiMajorAxis(self):
-        return formulas.semiMajorAxis1(self.mass, self.getOrbitalPeriod())
+        return formulas.semiMajorAxis(self.mass, self.getOrbitalPeriod())
 
     def getImpactParameter(self):
         return formulas.transitImpactParameter(self.radius, self.getPlanetaryRadius(), self.getOrbitalPeriod(), self.getTransitLength())
