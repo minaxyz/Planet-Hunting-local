@@ -1,6 +1,8 @@
 import matplotlib.pyplot as plt
+import formulas
 import numpy as np
-from numpy.polynomial.polynomial import Polynomial, polyval
+import inspect
+from numpy.polynomial.polynomial import Polynomial, polyval, polyder, polyroots
 from math import floor
 import inspect
 
@@ -232,7 +234,7 @@ class DataAnalyser():
             self.model = PhaseFoldedTransitModel(*self.getPhaseFoldedData())
             self.transitLength = self.model.max - self.model.min
         return self.model
-
+    
     def getOrbitalPeriod(self):
         if not self.ACCURATE_PERIOD_FLAG:
             self.__calculateOrbitalPeriod()
@@ -249,12 +251,18 @@ class DataAnalyser():
             self.__calibrate()
         return self.phase
     
-<<<<<<<<< Temporary merge branch 1
     def getPlanetaryRadius(self):
-        return formulas.PlanetaryRadius(self.mass, self.getModel().getPeak())
+        return formulas.planetaryRadius(self.mass, self.getModel().getPeak())
+    
+    def getSemiMajorAxis(self):
+        return formulas.semiMajorAxis1(self.mass, self.getOrbitalPeriod())
 
+    def getImpactParameter(self):
+        return formulas.transitImpactParameter(self.radius, self.getPlanetaryRadius(), self.getOrbitalPeriod(), self.getTransitLength())
 
-=========
+    def getOrbitalInclination(self):
+        return formulas.planetOrbitalInclination(self.radius, self.getPlanetaryRadius(), self.mass, self.getOrbitalPeriod(), self.getTransitLength())
+    
     def __calibrate(self, transitThreshold=1, timeStart=None, timeEnd=None):
         """Initialises the period.
         """
@@ -304,8 +312,7 @@ class DataAnalyser():
         else: #Identifies if there is a lower valid period.
             self.__calibrate(transitThreshold*TRANSIT_THRESHOLD_ITERATION_SCALING, self.phase, self.phase + 2*self.period)
             self.CALIBRATION_FLAG = True
-    
->>>>>>>>> Temporary merge branch 2
+
     def __calculateOrbitalPeriod(self):
         """Uses a least squares sum method to calculate the orbital period, and improves the estimation of the phase.
         """
@@ -369,7 +376,26 @@ class PhaseFoldedTransitModel():
                 self.min = root
         #Gets the coefficients of the polynomial model (used in evaluating the flux at a specified time in the __get_item__ function).
         self.coeffs = self.model.convert().coef
+        self.peakFlux, self.peakTime = None, None
 
+    def getPeak(self):
+        if self.peakFlux is None:
+            self.__initialisePeakValues()
+        return self.peakFlux
+    
+    def getPeakTime(self):
+        if self.peakTime is None:
+            self.__initialisePeakValues()
+        return self.peakTime
+
+    def __initialisePeakValues(self):
+        peakTimesArray = [x.real for x in polyroots(polyder(self.coeffs, 1)) if np.isreal(x)]
+        self.peakTime = peakTimesArray[0]
+        for peakTime in peakTimesArray[1:]:
+            if abs(peakTime) < abs(self.peakTime):
+                self.peakTime = peakTime
+        self.peakFlux = self[self.peakTime]
+            
     def getData(self):
         """Returns the phase-folded time and the model's corresponding estimated flux values as a tuple of time and flux. 
 
