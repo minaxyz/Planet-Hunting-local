@@ -125,6 +125,8 @@ class TransitDetector():
 
                 None is returned if a transit is not found.
         """
+        START = start
+        END = end
         #Ensuring that the transit is not anomalous.
         while (start := self.__findTransit(start, end, reverse, transitThreshold)) != (nregion := self.__findNormalRegion(start, reverse)):
             start = nregion
@@ -143,7 +145,7 @@ class TransitDetector():
             if (transitBound := self.convolvedFlux[i]) < fluxLow:
                 fluxLow, iLow = transitBound, i
             elif self.convolvedFlux[i] > transitThreshold:
-                return start, iLow, i
+                return (start, iLow, i) or None if (END <= iLow <= START if reverse else START <= iLow <= END) else None
         return start, iLow, i
 
     def __findTransit(self, start, end, reverse, transitThreshold):
@@ -248,7 +250,6 @@ class TransitDetector():
 
 class DataAnalyser():
 
-
     def __init__(self, dataID=None, dataHandler:AbstractDataHandler=LocalDataHandler):
         self.dataHandler = dataHandler(dataID) if dataID else dataHandler if not inspect.isclass(dataHandler) else None
         self.dataID = dataID or self.dataHandler and self.dataHandler.dataID
@@ -266,6 +267,7 @@ class DataAnalyser():
         self.ACCURATE_PERIOD_FLAG = False
         self.size = len(self.times) if self.dataHandler is not None else None
         self.period = None
+        self.transitThreshold = None
         self.transitLength = None
         self.phase = None
 
@@ -316,8 +318,9 @@ class DataAnalyser():
 
     def getTransitLength(self):
         if self.transitLength is None:
-            start, peak, end = self.transits.findTransitBounds(self.getPhase())
-            self.transitLength = max(end - start - 2*self.transits.dt*self.transits.uniformConvolutionFactor, self.transits.dt)
+            start, peak, end = self.transits.findTransitBounds(self.getPhase(), transitThreshold=self.transitThreshold)
+            if start and end:
+                self.transitLength = max(end - start - 2*self.transits.dt*self.transits.uniformConvolutionFactor, self.transits.dt)
         return self.transitLength
 
     def getPhase(self):
@@ -347,7 +350,7 @@ class DataAnalyser():
         transitSampleArray = [transitPeak]
         i = 0
         search_offset = 2*self.transits.dt
-        while i < TRANSIT_SAMPLES - 1 or timeEnd is not None: #Time is the limiting factor instead of the samples if it has been assigned a value.
+        while i < TRANSIT_SAMPLES - 1 and timeEnd is not None: #Time is the limiting factor instead of the samples if it has been assigned a value.
             transitStart, transitPeak, transitEnd = self.transits.findTransitBounds(transitEnd + search_offset, timeEnd, transitThreshold=transitThreshold)
             if transitPeak is not None:
                 transitSampleArray.append(transitPeak)
@@ -358,7 +361,7 @@ class DataAnalyser():
         for permutation in range(1,len(transitSampleArray)-1):
             for period, phase in ((period, transitSampleArray[i]) for i in range(len(transitSampleArray) - permutation - 1)
                                   #Permutation only checked if period is lower than the current period.
-                                if (period := transitSampleArray[i + permutation] - transitSampleArray[i]) and self.period is None or period < self.period - search_offset):
+                                if (period := transitSampleArray[i + permutation] - transitSampleArray[i]) and self.period is None or period > MINIMUM_PERIOD and period < self.period - search_offset):
                 #Initial probability of a valid period set to 50%.
                 passed = 1
                 total = 2
