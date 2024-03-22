@@ -60,10 +60,8 @@ def iterTest():
     else:
         print(f"No fails. 0/{i}")
     t.totalOut()
-#KIC002571238 period = 9.286958783276173
-#kplr002715135 period = 5.74771
-#KPLR009266431 period = 18.3963
-#KPLR012735740
-#timedTest("KPLR009266431", "n")
-timedTest("KPLR011189311", "c")
-#iterTest()
+
+#DataAnalyser("kplr005617854").plot('c')
+#TODO: Revisit kplr005617854
+#timedTest("KPLR005617854", "pm")
+iterTest()
