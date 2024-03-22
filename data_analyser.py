@@ -329,7 +329,7 @@ class DataAnalyser():
         return self.phase
     
     def getPlanetaryRadius(self):
-        return formulas.planetaryRadius(self.mass, self.getModel().getPeak())
+        return formulas.planetaryRadius(self.radius, self.getModel().getPeak())
     
     def getSemiMajorAxis(self):
         return formulas.semiMajorAxis(self.mass, self.getOrbitalPeriod())
