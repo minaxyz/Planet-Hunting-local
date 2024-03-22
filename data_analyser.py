@@ -21,6 +21,7 @@ TIME_TO_SEARCH_FOR_ANOMALOUS_REGIONS = 10
 ##Transit Analysis Constants
 #Transit Calibration Constants
 TRANSIT_SAMPLES = 30 #Number of samples to complete per iteration.
+CALIBRATION_SEARCH_OFFSET = 0.1 #Determines the interval to search for the transit.
 TRANSIT_THRESHOLD_ITERATION_SCALING = 0.75 #The scaling applied to the threshold after each iteration. Must be between 0 and 1.
 MINIMUM_TRANSIT_THRESHOLD = 0.5 #Determines the maximum number of recursion of calibration (max recursion depth = ceil(log_TRANSIT_THRESHOLD_ITERATION_SCALING(MINIMUM_TRANSIT_THRESHOLD))).
 """Determines the strictness in validating a transit (Higher -> Higher strictness), must be between 0 and 1, higher than ACCEPTANCE_LEVEL.
@@ -32,8 +33,8 @@ REJECTION_LEVEL = 0.2
 TRANSIT_CHARACTERISTICS_CLOSENESS_LEVEL = 0.025 #Determines if a period and phase of a transit pair partains to the current period and phase found.
 NON_ZERO = 0.01
 ##Orbital Period Calculation Constants
-SEARCH_OFFSET = 0.1 #Determines the interval to search for the transit.
-
+PERIOD_CALC_SEARCH_OFFSET = 0.1 #Determines the interval to search for the transit (Fractions of the period).
+RECALIBRATION_FACTOR = 2 #Determines how often to recalibrate (Recalibration occurs every log_RECALIBRATION_FACTOR(NTransits) times).
 
 def plot(*plots):
     plt.figure()
@@ -104,7 +105,7 @@ class TransitDetector():
             elif rightTransitBounds[1] is None:
                 return leftTransitBounds
             else:
-                return leftTransitBounds if 2*midPoint > leftTransitBounds[1] + rightTransitBounds[1] else rightTransitBounds
+                return leftTransitBounds if midPoint - leftTransitBounds[1] < rightTransitBounds[1] - midPoint else rightTransitBounds
         return (None, None, None) if bounds is None else tuple(self.times[x] for x in bounds)
 
     def __findTransitBounds(self, start, end, reverse, transitThreshold):
@@ -332,7 +333,7 @@ class DataAnalyser():
         return self.phase
     
     def getPlanetaryRadius(self):
-        return formulas.planetaryRadius(self.mass, self.getModel().getPeak())
+        return formulas.planetaryRadius(self.radius, self.getModel().getPeak())
     
     def getSemiMajorAxis(self):
         return formulas.semiMajorAxis(self.mass, self.getOrbitalPeriod())
@@ -352,7 +353,7 @@ class DataAnalyser():
         transitStart, transitPeak, transitEnd = self.transits.findTransitBounds(timeStart, transitThreshold=transitThreshold)
         transitSampleArray = [transitPeak]
         i = 0
-        search_offset = SEARCH_OFFSET
+        search_offset = CALIBRATION_SEARCH_OFFSET
         while transitPeak is not None and (i < TRANSIT_SAMPLES - 1 or (timeEnd is not None and transitPeak < timeEnd)): #Time is the limiting factor instead of the samples if it has been assigned a value.
             transitStart, transitPeak, transitEnd = self.transits.findTransitBounds(transitEnd + search_offset, timeEnd, transitThreshold=transitThreshold)
             if transitPeak is not None:
@@ -362,7 +363,7 @@ class DataAnalyser():
         for permutation in range(1,len(transitSampleArray)-1):
             for period, phase in ((period, transitSampleArray[i]) for i in range(len(transitSampleArray) - permutation - 1)
                                   #Permutation only checked if period is lower than the current period.
-                                if (period := transitSampleArray[i + permutation] - transitSampleArray[i]) and self.period is None or MINIMUM_PERIOD < period < self.period - SEARCH_OFFSET):
+                                if (period := transitSampleArray[i + permutation] - transitSampleArray[i]) and self.period is None or MINIMUM_PERIOD < period < self.period - search_offset):
                 #Initial probability of a valid period set to 50%.
                 passed = 1
                 total = 2
@@ -401,7 +402,7 @@ class DataAnalyser():
         nTransits = 1
         peakSum, weightedPeakSum = self.phase, 0
         nSkippedTransits, skippedTransitsSum, skippedTransitsSquareSum = 0, 0, 0
-        backtrack = max(self.period*self.transitThreshold*SEARCH_OFFSET, self.getTransitLength())
+        backtrack = max(self.period*self.transitThreshold*PERIOD_CALC_SEARCH_OFFSET, self.getTransitLength())
         recalibration = 2
         while nextTransitTimePredicted < self.transits.end:
             nextTransitTimeFound = self.transits.findTransitPeak(nextTransitTimePredicted - backtrack, nextTransitTimePredicted + backtrack, transitThreshold=self.transitThreshold, searchMode=False)
@@ -415,9 +416,9 @@ class DataAnalyser():
                 weightedPeakSum += nTransits*nextTransitTimeFound
                 nextTransitTimePredicted = nextTransitTimeFound + self.period
             nTransits += 1
-            if nTransits == recalibration:
+            if nTransits > recalibration:
                 self.period = (nextTransitTimePredicted - self.phase)/nTransits
-                recalibration *= 2
+                recalibration *= RECALIBRATION_FACTOR
 
         self.period, self.phase = estimatePeriodicSignal(peakSum, weightedPeakSum, nTransits, nSkippedTransits, skippedTransitsSum, skippedTransitsSquareSum)
         self.ACCURATE_PERIOD_FLAG = True
