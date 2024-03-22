@@ -63,6 +63,5 @@ def iterTest():
 
 #DataAnalyser("kplr005617854").plot('c')
 #TODO: Revisit kplr005617854
-#KIC008359498 Period: 3.578780566
-timedTest("KIC008359498", "pm")
+timedTest("kplr004644604", "c")
 #iterTest()

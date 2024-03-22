@@ -58,6 +58,7 @@ def phaseFold(times, flux, period, phase):
 
 class TransitDetector():
     def __init__(self, times, flux, searchMode=True):
+        self.searchMode = searchMode
         self.times = times
         self.size = len(self.times)
         self.dt = (self.times[-1] - self.times[0])/self.size
@@ -132,7 +133,7 @@ class TransitDetector():
         START = start
         END = end
         #Ensuring that the transit is not anomalous.
-        while (start := self.__findTransit(start, end, reverse, transitThreshold)) != (nregion := self.__findNormalRegion(start, reverse)):
+        while self.searchMode and (start := self.__findTransit(start, end, reverse, transitThreshold)) != (nregion := self.__findNormalRegion(start, reverse)):
             start = nregion
         #Returning if None i.e. transit is not found in the given bound.
         if start is None or (start < end if reverse else start > end):
@@ -247,6 +248,7 @@ class TransitDetector():
         if isinstance(key, slice):
             start = self.__findTime(key.start)
             stop = self.__findTime(key.stop)
+            #TODO: Prevent values above the anomaly threshold from being returned (Interferes with the transit model).
             return self.times[start:stop], self.convolvedFlux[start:stop]
         else:
             i = self.__findTime(key)
@@ -345,7 +347,7 @@ class DataAnalyser():
         return formulas.planetOrbitalInclination(self.radius, self.getPlanetaryRadius(), self.mass, self.getOrbitalPeriod(), self.getTransitLength())
     
     def __calibrate(self, transitThreshold=1.5, timeStart=None, timeEnd=None, rejectionLevel=REJECTION_LEVEL, acceptanceLevel=ACCEPTANCE_LEVEL):
-        """Initialises the period.
+        """Identifies the correct phase and period.
         """
         if transitThreshold < MINIMUM_TRANSIT_THRESHOLD or self.CALIBRATION_FLAG: #Transit threshold is too low or calibration has already occured.
             return
