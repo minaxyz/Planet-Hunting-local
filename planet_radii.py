@@ -49,3 +49,5 @@ EARTH_RADIUS = 6.378e6
 # plt.show()
 
 ''' End of histogram function '''
+
+DataAnalyser('plot_1').plot('pm')
