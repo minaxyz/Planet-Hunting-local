@@ -36,7 +36,7 @@ def timedTest(dataID, plotType=None):
     semiMajorAxis = analyser.getSemiMajorAxis()
     t.out("Parameters")
     print(f"{period = }, {phase = }, {transitLength = }, {peak = }, {threshold = }, {orbitalInclination = }, {semiMajorAxis = }")
-    print(analyser.transits.getAnomalousRegions())
+    print(f"Anomalous Flux Regions: {analyser.transits.getAnomalousRegions()}")
     t.totalOut()
     if plotType is not None:
         analyser.plot(plotType)
@@ -60,10 +60,9 @@ def iterTest():
     else:
         print(f"No fails. 0/{i}")
     t.totalOut()
-#KIC002571238 period = 9.286958783276173
-#kplr002715135 period = 5.74771
-#KPLR009266431 period = 18.3963
-#KPLR012735740
-#timedTest("KPLR009266431", "n")
-timedTest("KPLR011189311", "c")
+
+#DataAnalyser("kplr005617854").plot('c')
+#TODO: Revisit kplr005617854
+#KIC008359498 Period: 3.578780566
+timedTest("KIC008359498", "pm")
 #iterTest()
