@@ -22,28 +22,42 @@ class AbstractDataHandler(ABC):
     data analyser to become iterable as well.
     """
     def __init__(self, dataID):
-        
         pass
 
     @abstractmethod
     def getData(self):
-        """For the fetching of flux against time data.
-
+        """For the fetching of flux against time data of the stellar system.
+        
+        ----------
         Returns:
             tuple (times, flux):
                 times (np.array) - Contains the times for the corresponding flux recordings.
+
                 flux (np.array) - Contains the recordings of the intensity of the star's light. Data must be normalised
                 (i.e. flux must be a fraction of the mean).
+
             *Note that the arrays returned must not contain NaN values.
         """
         return None
     
     @abstractmethod
     def getRadius(self):
+        """For the fetching of the star's radius.
+        
+        ----------
+        Returns:
+            radius (float) - The radius of the star in `solar radii`.
+        """
         return None
     
     @abstractmethod
     def getMass(self):
+        """For the fetching of the star's mass.
+
+        ----------
+        Returns:
+            mass (float) - The mass of the star in `solar masses`.
+        """
         return None
 
 class LocalDataHandler(AbstractDataHandler):
