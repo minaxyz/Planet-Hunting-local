@@ -4,12 +4,46 @@ from PyPDF2 import PdfReader
 import numpy as np
 import os
 
+LOCAL_DATA_FOLDERS = ["Data", "NewData"]
+
+def setDirectories(directories):
+    """Specifies the directories in which to search for lightcurve files (any .tbl or .dat file).
+    By default "Data" and "NewData".
+
+    Arguments:
+        directories (iterable) - Directories to search for valid .dat or .tbl files (eg. ["Lightcurves", "Lightcurves/Kepler"]). 
+    """
+    global LOCAL_DATA_FOLDERS
+    LOCAL_DATA_FOLDERS = directories
+
 class AbstractDataHandler(ABC):
+    """Abstract data handler class for the creation of data handlers which are compatible with data analyser.
+    All data handlers must support `getData`, `getRadius`, and `getMass` methods, and optionally the `__iter__` method to allow for
+    data analyser to become iterable as well.
+    """
     def __init__(self, dataID):
+        
         pass
 
     @abstractmethod
     def getData(self):
+        """For the fetching of flux against time data.
+
+        Returns:
+            tuple (times, flux):
+                times (np.array) - Contains the times for the corresponding flux recordings.
+                flux (np.array) - Contains the recordings of the intensity of the star's light. Data must be normalised
+                (i.e. flux must be a fraction of the mean).
+            *Note that the arrays returned must not contain NaN values.
+        """
+        return None
+    
+    @abstractmethod
+    def getRadius(self):
+        return None
+    
+    @abstractmethod
+    def getMass(self):
         return None
 
 class LocalDataHandler(AbstractDataHandler):
@@ -27,8 +61,13 @@ class LocalDataHandler(AbstractDataHandler):
             self.load(dataID)
 
     def __initialiseSystemsDirectoryDict(self):
-        self.systemsDirectoryDict = {file.split('.')[0].upper():"Data/" + file for file in os.listdir("Data") if file.endswith((".tbl",".dat")) and "phaseFold" not in file and "TIC" not in file
-                                } | {file.split('_')[0].upper():"NewData/" + file for file in os.listdir("NewData") if file.endswith(".tbl")}
+        self.systemsDirectoryDict = {}
+        for folderName in LOCAL_DATA_FOLDERS: 
+            self.systemsDirectoryDict |= {
+                file.split('.')[0].split('_')[0].upper():folderName + '/' + file 
+                for file in os.listdir(folderName) 
+                if file.endswith((".tbl",".dat")) 
+                and "phaseFold" not in file and "TIC" not in file}
     
     def __initialiseStellarMassAndRadius(self):
         f = PdfReader(open("Data/Stellar_Mass_Radius.pdf", 'rb'))
@@ -48,9 +87,9 @@ class LocalDataHandler(AbstractDataHandler):
         self.radius, self.mass = self.stellarMassRadiusDict[self.dataID] if self.dataID in self.stellarMassRadiusDict else (None, None)
         try:
             directory = self.systemsDirectoryDict[self.dataID]
-            if directory.startswith("Data"):
+            if "KIC" in directory.upper():
                 self.times, self.flux = np.loadtxt(directory, unpack=True, skiprows=3, usecols=[1,2])
-            elif directory.startswith("NewData"):
+            elif "KPLR" in directory.upper():
                 self.times, self.flux = np.loadtxt(directory, unpack=True, skiprows=136, usecols=[0,7])
                 self.__removeNANFluxValues()
 

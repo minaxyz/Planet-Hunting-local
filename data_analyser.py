@@ -255,7 +255,6 @@ class TransitDetector():
             return self.times[i], self.convolvedFlux[i]
 
 class DataAnalyser():
-
     def __init__(self, dataID=None, dataHandler:AbstractDataHandler=LocalDataHandler):
         self.dataHandler = dataHandler(dataID) if dataID else dataHandler if not inspect.isclass(dataHandler) else None
         self.dataID = dataID or self.dataHandler and self.dataHandler.dataID
