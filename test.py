@@ -36,9 +36,10 @@ def timedTest(dataID, plotType=None):
     peak = analyser.getModel().getPeak()
     threshold = analyser.transits.getTransitThreshold()
     orbitalInclination = analyser.getOrbitalInclination()
+    impactParameter = analyser.getImpactParameter()
     semiMajorAxis = analyser.getSemiMajorAxis()
     t.out("Parameters")
-    print(f"{period = }, {phase = }, {transitLength = }, {peak = }, {threshold = }, {orbitalInclination = }, {semiMajorAxis = }")
+    print(f"{period = }, {phase = }, {transitLength = }, {peak = }, {threshold = }, {orbitalInclination = }, {semiMajorAxis = }, {impactParameter = }")
     print(f"Anomalous Flux Regions: {analyser.transits.getAnomalousRegions()}")
     t.totalOut()
     if plotType is not None:
@@ -68,5 +69,5 @@ def iterTest():
 
 #DataAnalyser("kplr005617854").plot('c')
 #TODO: Revisit kplr005617854
-#timedTest("KPLR011189311", "p")
+timedTest("KIC002571238", "p")
 #iterTest()

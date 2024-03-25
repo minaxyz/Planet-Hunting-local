@@ -318,11 +318,15 @@ class DataAnalyser():
         return self.model
     
     def getOrbitalPeriod(self):
-        if not self.SAMPLING_FLAG:
+        if self.HIGH_ACCURACY_FLAG and not self.SAMPLING_FLAG:
             self.__sampleTransits()
+        elif not self.CALIBRATION_FLAG:
+            self.__calibrate()
         return self.period
 
     def getTransitLength(self):
+        if self.HIGH_ACCURACY_FLAG and not self.model:
+            self.getModel()
         if self.transitLength is None:
             start, peak, end = self.transits.findTransitBounds(self.getPhase(), transitThreshold=self.transitThreshold)
             if start and end:
@@ -335,21 +339,27 @@ class DataAnalyser():
         return self.phase
     
     def getPlanetaryRadius(self):
-        return formulas.planetaryRadius(self.radius, self.getModel().getPeak())
+        return self.radius and self.getModel().getPeak() and formulas.planetaryRadius(self.radius, self.getModel().getPeak())
     
     def getSemiMajorAxis(self):
-        return formulas.semiMajorAxis(self.mass, self.getOrbitalPeriod())
+        if self.mass and self.getOrbitalPeriod():
+            return self.mass and formulas.semiMajorAxis(self.mass, self.period)
+        return None
 
     def getImpactParameter(self):
-        return formulas.transitImpactParameter(self.radius, self.getPlanetaryRadius(), self.getOrbitalPeriod(), self.getTransitLength())
+        if self.radius and self.getPlanetaryRadius() and self.getOrbitalPeriod() and self.getTransitLength():
+            return formulas.transitImpactParameter(self.radius, self.getPlanetaryRadius(), self.period, self.transitLength)
+        return None
 
     def getOrbitalInclination(self):
-        return formulas.planetOrbitalInclination(self.radius, self.getPlanetaryRadius(), self.mass, self.getOrbitalPeriod(), self.getTransitLength())
+        if self.radius and self.mass and self.getPlanetaryRadius() and self.getOrbitalPeriod() and self.getTransitLength():
+            return formulas.planetOrbitalInclination(self.radius, self.getPlanetaryRadius(), self.mass, self.period, self.transitLength)
+        return None
     
     def __calibrate(self, transitThreshold=1.5, timeStart=None, timeEnd=None, acceptanceLevel=ACCEPTANCE_LEVEL):
         """Identifies the correct phase and period.
         """
-        if self.CALIBRATION_FLAG and transitThreshold < MINIMUM_TRANSIT_THRESHOLD: #Return if the transit threshold is too low or calibration has already occured.
+        if self.CALIBRATION_FLAG or transitThreshold < MINIMUM_TRANSIT_THRESHOLD: #Return if the transit threshold is too low or calibration has already occured.
             return
         #Finding the first TRANSIT_SAMPLES transits to test for the period.
         transitStart, transitPeak, transitEnd = self.transits.findTransitBounds(timeStart, transitThreshold=transitThreshold)
@@ -401,13 +411,13 @@ class DataAnalyser():
             return
         self.__calibrate()
         nextTransitTimePredicted = self.phase + self.period
-        lastTransit = self.transits.end
+        lastTransitTime = self.transits.end
         nTransits = 1
         peakSum, weightedPeakSum = self.phase, 0
         nSkippedTransits, skippedTransitsSum, skippedTransitsSquareSum = 0, 0, 0
-        backtrack = max(self.period*self.transitThreshold*PERIOD_CALC_SEARCH_OFFSET, self.getTransitLength())
+        backtrack = self.period*self.transitThreshold*PERIOD_CALC_SEARCH_OFFSET
         recalibration = 2
-        while nextTransitTimePredicted < self.transits.end:
+        while nextTransitTimePredicted < lastTransitTime:
             nextTransitTimeFound = self.transits.findTransitPeak(nextTransitTimePredicted - backtrack, nextTransitTimePredicted + backtrack, transitThreshold=self.transitThreshold, searchMode=False)
             if nextTransitTimeFound is None:
                 nSkippedTransits += 1
