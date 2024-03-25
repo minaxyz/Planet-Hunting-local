@@ -21,6 +21,9 @@ class Timing():
         if not self.sinceLastOut:
             self.out(label)
         print(f"Total: {(perf_counter() - self.s)*self.unit} {self.unitPrefix}")
+    
+    def skip(self):
+        self.last = perf_counter()
 
 def timedTest(dataID, plotType=None):
     print(f"{dataID} results:")
@@ -33,9 +36,10 @@ def timedTest(dataID, plotType=None):
     peak = analyser.getModel().getPeak()
     threshold = analyser.transits.getTransitThreshold()
     orbitalInclination = analyser.getOrbitalInclination()
+    impactParameter = analyser.getImpactParameter()
     semiMajorAxis = analyser.getSemiMajorAxis()
     t.out("Parameters")
-    print(f"{period = }, {phase = }, {transitLength = }, {peak = }, {threshold = }, {orbitalInclination = }, {semiMajorAxis = }")
+    print(f"{period = }, {phase = }, {transitLength = }, {peak = }, {threshold = }, {orbitalInclination = }, {semiMajorAxis = }, {impactParameter = }")
     print(f"Anomalous Flux Regions: {analyser.transits.getAnomalousRegions()}")
     t.totalOut()
     if plotType is not None:
@@ -49,10 +53,12 @@ def iterTest():
     for d in DataAnalyser():
         i += 1
         try:
+            d.getModel()
             print(f"{i:<6} | {d.dataID:<15} | {d.getOrbitalPeriod():<20} | {d.getPlanetaryRadius():<20} | {d.getSemiMajorAxis():<20} | {d.getImpactParameter():<20} | {d.getOrbitalInclination():<20} |", end=" ")
             t.out()
         except Exception:
             failed.append(d.dataID)
+            t.skip()
     if failed:
         print(f"Failed: {len(failed)}/{i}")
         for dataID in failed:
@@ -63,6 +69,5 @@ def iterTest():
 
 #DataAnalyser("kplr005617854").plot('c')
 #TODO: Revisit kplr005617854
-#KIC008359498 Period: 3.578780566
-timedTest("KIC008359498", "pm")
+timedTest("KIC002571238", "p")
 #iterTest()

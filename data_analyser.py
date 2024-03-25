@@ -58,6 +58,7 @@ def phaseFold(times, flux, period, phase):
 
 class TransitDetector():
     def __init__(self, times, flux, searchMode=True):
+        self.searchMode = searchMode
         self.times = times
         self.size = len(self.times)
         self.dt = (self.times[-1] - self.times[0])/self.size
@@ -132,7 +133,7 @@ class TransitDetector():
         START = start
         END = end
         #Ensuring that the transit is not anomalous.
-        while (start := self.__findTransit(start, end, reverse, transitThreshold)) != (nregion := self.__findNormalRegion(start, reverse)):
+        while self.searchMode and (start := self.__findTransit(start, end, reverse, transitThreshold)) != (nregion := self.__findNormalRegion(start, reverse)):
             start = nregion
         #Returning if None i.e. transit is not found in the given bound.
         if start is None or (start < end if reverse else start > end):
@@ -247,14 +248,14 @@ class TransitDetector():
         if isinstance(key, slice):
             start = self.__findTime(key.start)
             stop = self.__findTime(key.stop)
+            #TODO: Prevent values above the anomaly threshold from being returned (Interferes with the transit model).
             return self.times[start:stop], self.convolvedFlux[start:stop]
         else:
             i = self.__findTime(key)
             return self.times[i], self.convolvedFlux[i]
 
 class DataAnalyser():
-
-    def __init__(self, dataID=None, dataHandler:AbstractDataHandler=LocalDataHandler):
+    def __init__(self, dataID=None, dataHandler:AbstractDataHandler=LocalDataHandler, highAccuracy=True):
         self.dataHandler = dataHandler(dataID) if dataID else dataHandler if not inspect.isclass(dataHandler) else None
         self.dataID = dataID or self.dataHandler and self.dataHandler.dataID
         #Flux against Time data
@@ -267,13 +268,15 @@ class DataAnalyser():
         #Stellar radius and mass
         self.radius, self.mass = (self.dataHandler.getRadius(), self.dataHandler.getMass()) if self.dataHandler is not None else (None, None)
 
-        self.CALIBRATION_FLAG = False
-        self.ACCURATE_PERIOD_FLAG = False
         self.size = len(self.times) if self.dataHandler is not None else None
         self.period = None
         self.transitThreshold = None
         self.transitLength = None
         self.phase = None
+
+        self.HIGH_ACCURACY_FLAG = highAccuracy
+        self.CALIBRATION_FLAG = False
+        self.SAMPLING_FLAG = False
 
     def plot(self, plotType=""):
         match plotType:
@@ -314,13 +317,16 @@ class DataAnalyser():
             self.transitLength = self.model.max - self.model.min
         return self.model
     
-    
     def getOrbitalPeriod(self):
-        if not self.ACCURATE_PERIOD_FLAG:
-            self.__calculateOrbitalPeriod()
+        if self.HIGH_ACCURACY_FLAG and not self.SAMPLING_FLAG:
+            self.__sampleTransits()
+        elif not self.CALIBRATION_FLAG:
+            self.__calibrate()
         return self.period
 
     def getTransitLength(self):
+        if self.HIGH_ACCURACY_FLAG and not self.model:
+            self.getModel()
         if self.transitLength is None:
             start, peak, end = self.transits.findTransitBounds(self.getPhase(), transitThreshold=self.transitThreshold)
             if start and end:
@@ -333,21 +339,27 @@ class DataAnalyser():
         return self.phase
     
     def getPlanetaryRadius(self):
-        return formulas.planetaryRadius(self.radius, self.getModel().getPeak())
+        return self.radius and self.getModel().getPeak() and formulas.planetaryRadius(self.radius, self.getModel().getPeak())
     
     def getSemiMajorAxis(self):
-        return formulas.semiMajorAxis(self.mass, self.getOrbitalPeriod())
+        if self.mass and self.getOrbitalPeriod():
+            return self.mass and formulas.semiMajorAxis(self.mass, self.period)
+        return None
 
     def getImpactParameter(self):
-        return formulas.transitImpactParameter(self.radius, self.getPlanetaryRadius(), self.getOrbitalPeriod(), self.getTransitLength())
+        if self.radius and self.getPlanetaryRadius() and self.getOrbitalPeriod() and self.getTransitLength():
+            return formulas.transitImpactParameter(self.radius, self.getPlanetaryRadius(), self.period, self.transitLength)
+        return None
 
     def getOrbitalInclination(self):
-        return formulas.planetOrbitalInclination(self.radius, self.getPlanetaryRadius(), self.mass, self.getOrbitalPeriod(), self.getTransitLength())
+        if self.radius and self.mass and self.getPlanetaryRadius() and self.getOrbitalPeriod() and self.getTransitLength():
+            return formulas.planetOrbitalInclination(self.radius, self.getPlanetaryRadius(), self.mass, self.period, self.transitLength)
+        return None
     
-    def __calibrate(self, transitThreshold=1.5, timeStart=None, timeEnd=None, rejectionLevel=REJECTION_LEVEL, acceptanceLevel=ACCEPTANCE_LEVEL):
-        """Initialises the period.
+    def __calibrate(self, transitThreshold=1.5, timeStart=None, timeEnd=None, acceptanceLevel=ACCEPTANCE_LEVEL):
+        """Identifies the correct phase and period.
         """
-        if transitThreshold < MINIMUM_TRANSIT_THRESHOLD or self.CALIBRATION_FLAG: #Transit threshold is too low or calibration has already occured.
+        if self.CALIBRATION_FLAG or transitThreshold < MINIMUM_TRANSIT_THRESHOLD: #Return if the transit threshold is too low or calibration has already occured.
             return
         #Finding the first TRANSIT_SAMPLES transits to test for the period.
         transitStart, transitPeak, transitEnd = self.transits.findTransitBounds(timeStart, transitThreshold=transitThreshold)
@@ -392,19 +404,20 @@ class DataAnalyser():
             self.__calibrate(transitThreshold*TRANSIT_THRESHOLD_ITERATION_SCALING, self.phase, self.phase + 2*self.period)
             self.CALIBRATION_FLAG = True
 
-
-    def __calculateOrbitalPeriod(self):
-        """Uses a least squares sum method to calculate the orbital period, and improves the estimation of the phase.
+    def __sampleTransits(self):
+        """Samples each transit by using a least squares sum formula to improve the orbital period and phase calculation.
         """
+        if self.SAMPLING_FLAG:
+            return
         self.__calibrate()
         nextTransitTimePredicted = self.phase + self.period
-        lastTransit = self.transits.end
+        lastTransitTime = self.transits.end
         nTransits = 1
         peakSum, weightedPeakSum = self.phase, 0
         nSkippedTransits, skippedTransitsSum, skippedTransitsSquareSum = 0, 0, 0
-        backtrack = max(self.period*self.transitThreshold*PERIOD_CALC_SEARCH_OFFSET, self.getTransitLength())
+        backtrack = self.period*self.transitThreshold*PERIOD_CALC_SEARCH_OFFSET
         recalibration = 2
-        while nextTransitTimePredicted < self.transits.end:
+        while nextTransitTimePredicted < lastTransitTime:
             nextTransitTimeFound = self.transits.findTransitPeak(nextTransitTimePredicted - backtrack, nextTransitTimePredicted + backtrack, transitThreshold=self.transitThreshold, searchMode=False)
             if nextTransitTimeFound is None:
                 nSkippedTransits += 1
@@ -421,7 +434,7 @@ class DataAnalyser():
                 recalibration *= RECALIBRATION_FACTOR
 
         self.period, self.phase = estimatePeriodicSignal(peakSum, weightedPeakSum, nTransits, nSkippedTransits, skippedTransitsSum, skippedTransitsSquareSum)
-        self.ACCURATE_PERIOD_FLAG = True
+        self.SAMPLING_FLAG = True
 
     def __iter__(self):
         for dataHandler in LocalDataHandler():
@@ -431,6 +444,7 @@ class PhaseFoldedTransitModel():
     def __init__(self, phaseFoldedTimes, phaseFoldedFlux):
         """Creates a model for the phase-folded time-sorted transit data using polynomial interpolation.
 
+        ----------
         Arguments:
             phaseFoldedTimes (arraylike) -- The phase-folded sorted time of the transit data.
 
@@ -480,9 +494,11 @@ class PhaseFoldedTransitModel():
     def getData(self):
         """Returns the phase-folded time and the model's corresponding estimated flux values as a tuple of time and flux. 
 
+        ----------
         Returns:
-            tuple (phaseFoldedTimes, fluxModelEstimations)
+            tuple (phaseFoldedTimes, fluxModelEstimations):
               phaseFoldedTimes (arraylike) -- The phase-folded sorted time of the transit data.
+
               fluxModelEstimation (np.array) -- The flux evaluated from the model at the indexes corresponding to the phase-folded time.
         """
         return self.phaseFoldedTimes, np.fromiter(self, float)
@@ -496,9 +512,11 @@ class PhaseFoldedTransitModel():
     def __getitem__(self, time):
         """Returns the model's estimated flux value of the phase folded transit data. 
 
+        ----------
         Arguments:
             time (float) -- The time at which to evaluate the flux of the model.
 
+        ----------
         Returns:
             flux (float) -- The flux at the specified time evaluated from the model.
         """
