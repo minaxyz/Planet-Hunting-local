@@ -3,7 +3,12 @@ from data_analyser import DataAnalyser
 
 radii = []
 for system in DataAnalyser():
-    radii.append(system.getPlanetaryRadius())
+    try:
+        radii.append(system.getPlanetaryRadius())
+    except Exception:
+        pass
 
+plt.xlabel("Planetary Radius")
+plt.ylabel("Frequency")
 plt.hist(radii)
 plt.show()

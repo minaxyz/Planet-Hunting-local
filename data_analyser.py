@@ -20,7 +20,7 @@ TIME_TO_SEARCH_FOR_ANOMALOUS_REGIONS = 10
 
 ##Transit Analysis Constants
 #Transit Calibration Constants
-TRANSIT_SAMPLES = 30 #Number of samples to complete per iteration.
+TRANSIT_SAMPLES = 50 #Number of samples to complete per iteration.
 CALIBRATION_SEARCH_OFFSET = 0.1 #Determines the interval to search for the transit.
 TRANSIT_THRESHOLD_ITERATION_SCALING = 0.75 #The scaling applied to the threshold after each iteration. Must be between 0 and 1.
 MINIMUM_TRANSIT_THRESHOLD = 0.5 #Determines the maximum number of recursion of calibration (max recursion depth = ceil(log_TRANSIT_THRESHOLD_ITERATION_SCALING(MINIMUM_TRANSIT_THRESHOLD))).
@@ -96,6 +96,8 @@ def phaseFold(times, flux, period, phase):
     return phaseFoldedTimes[sort], flux[sort]
 
 class TransitDetector():
+    """Facilitates the detection of transits in flux against time data from stellar system.
+    """
     def __init__(self, times, flux, searchMode=True):
         """
         Arguments:
@@ -402,7 +404,7 @@ class TransitDetector():
             return self.times[i], self.convolvedFlux[i]
 
 class DataAnalyser(AbstractDataHandler):
-    """Class for the analysis of stellar systems.
+    """Facilitates the extraction of system parameters from stellar system data.
     Allows for system parameters to be extrancted from the required data provided by an instance of a subclass of AbstractDataHandler.
 
     System parameters supported:
@@ -688,10 +690,10 @@ class DataAnalyser(AbstractDataHandler):
             yield DataAnalyser(dataHandler=dataHandler)
 
 class PhaseFoldedTransitModel():
+    """Creates a model for the phase-folded time-sorted transit data using polynomial interpolation.
+    """
     def __init__(self, phaseFoldedTimes, phaseFoldedFlux):
-        """Creates a model for the phase-folded time-sorted transit data using polynomial interpolation.
-
-        ----------
+        """
         Arguments:
             phaseFoldedTimes (arraylike) -- The phase-folded sorted time of the transit data.
 
@@ -741,7 +743,7 @@ class PhaseFoldedTransitModel():
         return self.peakTime
 
     def __initialisePeakValues(self):
-        self.peakTime = min([x.real for x in polyroots(polyder(self.coeffs, 1)) if np.isreal(x) and self.min <= x <= self.max]) or self.min
+        self.peakTime = min([x.real for x in polyroots(polyder(self.coeffs, 1)) if np.isreal(x) and self.min <= x <= self.max] or [self.min]) 
         self.peakFlux = self[self.peakTime]
             
     def getData(self):

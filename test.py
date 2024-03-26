@@ -69,5 +69,5 @@ def iterTest():
     t.totalOut()
 
 #print(DataAnalyser("KPLR011673802").getOrbitalPeriod())
-timedTest("kplr004164994", "pm")
+timedTest("kplr009825625", "c")
 #iterTest()

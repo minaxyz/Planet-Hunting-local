@@ -64,6 +64,11 @@ class AbstractDataHandler():
         return self.mass
 
 class LocalDataHandler(AbstractDataHandler):
+    """Built-in fetching of data from specified local files which follow the old or new nasa exoplanet archive data format.
+    (By default it is assumed that files follow the new format, so if a file follows the old format, 
+    the file's name needs to start with KIC)
+    LocalDataHandler is iterable.
+    """
     systemsDirectoryDict = None
     stellarMassRadiusDict = None
 
