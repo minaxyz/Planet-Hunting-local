@@ -1,5 +1,5 @@
 import formulas
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from PyPDF2 import PdfReader
 import numpy as np
 import os
@@ -16,49 +16,52 @@ def setDirectories(directories):
     global LOCAL_DATA_FOLDERS
     LOCAL_DATA_FOLDERS = directories
 
-class AbstractDataHandler(ABC):
+class AbstractDataHandler():
     """Abstract data handler class for the creation of data handlers which are compatible with data analyser.
     All data handlers must support `getData`, `getRadius`, and `getMass` methods, and optionally the `__iter__` method to allow for
     data analyser to become iterable as well.
     """
     def __init__(self, dataID):
-        pass
+        """Loads the data from the specified stellar system.
 
-    @abstractmethod
+        ----------
+        Arguments:
+            dataID (str) - The ID of the data to load.
+        """
+        self.times, self.flux, self.radius, self.mass = None, None, None, None 
+
     def getData(self):
-        """For the fetching of flux against time data of the stellar system.
+        """Returns the flux against time data of the stellar system.
         
         ----------
         Returns:
             tuple (times, flux):
-                times (np.array) - Contains the times for the corresponding flux recordings.
+                times (np.array) - Contains the times for the corresponding flux recordings -- Units: `Days`.
 
                 flux (np.array) - Contains the recordings of the intensity of the star's light. Data must be normalised
                 (i.e. flux must be a fraction of the mean).
 
-            *Note that the arrays returned must not contain NaN values.
+            *Note: The arrays returned do not contain NaN values.
         """
-        return None
+        return self.times, self.flux
     
-    @abstractmethod
     def getRadius(self):
-        """For the fetching of the star's radius.
+        """Returns the fetching of the star's radius.
         
         ----------
         Returns:
-            radius (float) - The radius of the star in `solar radii`.
+            radius (float) - The radius of the star -- Units: `solar radii`.
         """
-        return None
+        return self.radius
     
-    @abstractmethod
     def getMass(self):
         """For the fetching of the star's mass.
 
         ----------
         Returns:
-            mass (float) - The mass of the star in `solar masses`.
+            mass (float) - The mass of the star -- Units: `solar masses`.
         """
-        return None
+        return self.mass
 
 class LocalDataHandler(AbstractDataHandler):
     systemsDirectoryDict = None
@@ -84,15 +87,19 @@ class LocalDataHandler(AbstractDataHandler):
                 and "phaseFold" not in file and "TIC" not in file}
     
     def __initialiseStellarMassAndRadius(self):
-        f = PdfReader(open("Data/Stellar_Mass_Radius.pdf", 'rb'))
-        tableData = f.pages[0].extract_text().split()[9:]
-        self.stellarMassRadiusDict = {tableData[i]:(float(tableData[i+2]),float(tableData[i+1]))  for i in range(0,len(tableData),3)}
+        self.stellarMassRadiusDict = None
+        try:
+            f = PdfReader(open("Data/Stellar_Mass_Radius.pdf", 'rb'))
+            tableData = f.pages[0].extract_text().split()[9:]
+            self.stellarMassRadiusDict = {tableData[i]:(float(tableData[i+2]),float(tableData[i+1]))  for i in range(0,len(tableData),3)}
+        except Exception:
+            pass
     
     def load(self, dataID:str):
         """Loads the data from the specified stellar system.
         Raises Exception if the dataID is invalid.
 
-        ----
+        ----------
         Arguments:
             dataID (str) -- The ID of the data to load.
         """
@@ -121,15 +128,6 @@ class LocalDataHandler(AbstractDataHandler):
         if len(nanValuesIndexes) > 0:
             self.times = np.delete(self.times, nanValuesIndexes)
             self.flux = np.delete(self.flux, nanValuesIndexes)
-
-    def getData(self):
-        return self.times, self.flux
-    
-    def getRadius(self):
-        return self.radius
-
-    def getMass(self):
-        return self.mass
 
     def __iter__(self):
         for dataID in self.systemsDirectoryDict.keys():

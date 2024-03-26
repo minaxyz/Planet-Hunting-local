@@ -9,9 +9,9 @@ AU = 1.496e11
 def stellarMass(stellarRadius, surfaceGravity):
     """
     Arguments:
-        stellar radius (float) -- Units: `Solar radii`.
+        stellar radius (float) - The mean volumetric radius of the star `Solar Radii` -- Units: `Solar radii`.
 
-        surface gravity (float) -- Units: `ms^-2`.
+        surface gravity (float) - The acceleration due to gravity on the surface of the star -- Units: `ms^-2`.
 
     ------------------------
     Returns:
@@ -22,59 +22,61 @@ def stellarMass(stellarRadius, surfaceGravity):
 def transitImpactParameter(stellarRadius, stellarMass, planetaryRadius, orbitalPeriod, transitDuration):
     """
     Arguments:
-        stellar radius (float) -- Units: `Solar radii`.
+        stellar radius (float) - The mean volumetric radius of the star -- Units: `Solar radii`.
 
-        planetary radius (float) -- Units: `ms^-2`.
+        planetary radius (float) - The radius of the planet -- Units: `ms^-2`.
 
-        semi major axis (float) -- Units: `AU`.
+        semi major axis (float) - The farthest distance between the planet and the star -- Units: `AU`.
 
-        orbital period (float) -- Units: `Days`.
+        orbital period (float) - The time interval between transits -- Units: `Days`.
 
-        transit duration (float) -- Units: `Days`.
+        transit duration (float) - The time the planet spends partially blocking the star's light -- Units: `Days`.
     
     ------------------------
     Returns:
-        transit impact parameter (float) -- Units: `Stellar radius ratio`.
+        transit impact parameter (float) - The perpendicular distance between the orbit the star's centre, expressed as a ratio of 
+        the star's radius -- Units: `Stellar radius ratio`.
     """
     return min((max(((stellarRadius*SOLAR_RADIUS + planetaryRadius*EARTH_RADIUS)**2)-((semiMajorAxis(stellarMass, orbitalPeriod)*AU*math.sin(transitDuration * math.pi/orbitalPeriod))**2), 0)**0.5)/(stellarRadius*SOLAR_RADIUS), 1 + (planetaryRadius*EARTH_RADIUS/stellarRadius*SOLAR_RADIUS))
 
 def semiMajorAxis(stellarMass, orbitalPeriod):
     """
     Arguments:
-        stellar mass (float) -- Units: `Solar radii`.
+        stellar mass (float) - The mass of the star -- Units: `Solar radii`.
 
-        orbital period (float) -- Units: `Days`.
+        orbital period (float) - The time interval between transits -- Units: `Days`.
 
     ------------------------
     Returns:
-        semi major axis (float) -- Units: `AU`.
+        semi major axis (float) - The farthest distance between the planet and the star -- Units: `AU`.
     """
     return ((G*SOLAR_MASS*stellarMass*(86400*orbitalPeriod)**2/(4*math.pi**2))**(1/3))/AU
 
-def planetOrbitalInclination(starRadius, semiMajorAxis, transitImpactParameter):
+def planetOrbitalInclination(stellarRadius, semiMajorAxis, transitImpactParameter):
     """
     Arguments:
-        stellar radius (float) -- Units: `Solar radii`.
+        stellar radius (float) - The mean volumetric radius of the star -- Units: `Solar Radii`.
 
-        semi major axis (float) -- Units: `AU`.
+        semi major axis (float) - The farthest distance between the planet and the star -- Units: `AU`.
 
-        transit impact parameter (float) -- Units: `Stellar radius ratio`.
+        transit impact parameter (float) - The perpendicular distance between the orbit the star's centre, expressed as a ratio of 
+        the star's radius -- Units: `Stellar radius ratio`.
 
     ------------------------
     Returns:
-        planet orbital inclination (float) -- Units: `Degrees`.
+        planet orbital inclination (float) - The angle between the star's and the planet's orbiting plane -- Units: `degrees`.
     """
-    return math.acos((transitImpactParameter*starRadius*SOLAR_RADIUS)/(semiMajorAxis*AU))*(180/math.pi)
+    return math.acos((transitImpactParameter*stellarRadius*SOLAR_RADIUS)/(semiMajorAxis*AU))*(180/math.pi)
 
-def planetaryRadius(solarRadius, flux):
+def planetaryRadius(stellarRadius, peakFlux):
     """
     Arguments:
-        planetary radius (float) -- Units: `Earth radii`.
+        stellar radius (float) - The mean volumetric radius of the star -- Units: `Solar Radii`.
 
-        flux (float) -- Units: `Normalised stellar flux`.
+        peak flux (float) - The greatest change in flux during a transit -- Units: `Normalised stellar flux`.
 
     ------------------------
     Returns:
-        planetary radius (float) -- Units: `Earth radii`.
+        planetary radius (float) - The radius of the planet -- Units: `ms^-2`.
     """
-    return (solarRadius*SOLAR_RADIUS*(abs(flux)**(1/2)))/EARTH_RADIUS
+    return (stellarRadius*SOLAR_RADIUS*(abs(peakFlux)**(1/2)))/EARTH_RADIUS

@@ -36,14 +36,36 @@ PERIOD_CALC_SEARCH_OFFSET = 0.2 #Determines the interval to search for the trans
 RECALIBRATION_FACTOR = 2 #Determines how often to recalibrate (Recalibration occurs every log_RECALIBRATION_FACTOR(NTransits) times).
 
 def plot(*plots):
+    """Uses matplotlib to plot a time aganinst flux graph.
+
+    ----------
+    Arguments:
+        plot (times, flux):
+            times (np.array) - Contains the times for the corresponding flux recordings.
+
+            flux (np.array) - Contains the recordings of the intensity of the star's light.
+        or
+        *plots (arraylike):
+            *plots - An array of individual plots (`(plot1, plot2,.. plotN), where plotK = (timesK, fluxK)`).
+    """
     plt.figure()
     plt.xlabel("Time")
     plt.ylabel("Flux")
-    for data in plots:
-        plt.plot(*data, '.', markersize=2)
+    if isinstance(plots[0][0], float):
+        plt.plot(*plots, '.', markersize=2)
+    else:
+        for data in plots:
+            plt.plot(*data, '.', markersize=2)
     plt.show()
 
 def histogram(flux):
+    """Uses matplotlib to plot a histogram of the flux values. The histogram contains 100 buckets.
+    The y-axis is the percentage of the flux values which an individual bucket occupies.
+
+    ----------
+    Arguments:
+        flux (np.array) - The array containing the flux values to form a histogram from.
+    """
     plt.figure()
     plt.xlabel("Time")
     plt.ylabel("Proportion")
@@ -51,18 +73,45 @@ def histogram(flux):
     plt.show()
 
 def phaseFold(times, flux, period, phase):
+    """Returns an array of phase-folded times and flux, sorted by phase-folded times.
+
+    ----------
+    Arguments:
+        times (np.array) - Contains the times for the corresponding flux recordings.
+
+        flux (np.array) - Contains the recordings of the intensity of a star's light intensity over time.
+
+        period (float) - The period of the transits.
+
+        phase (float) - The time at which the peak of any of the transits occurs.
+    
+    ----------
+    Returns:
+        times (np.array) - Contains the times for the corresponding flux recordings.
+
+        flux (np.array) - Contains the recordings of the intensity of a star's light intensity over time.
+    """
     phaseFoldedTimes = ((times - phase + period/2) % period) - period/2
     sort = np.argsort(phaseFoldedTimes)
     return phaseFoldedTimes[sort], flux[sort]
 
 class TransitDetector():
-    def __init__(self, times, flux, searchMode=True, factor=1):
+    def __init__(self, times, flux, searchMode=True):
+        """
+        Arguments:
+            times (np.array) - Contains the times for the corresponding flux recordings.
+
+            flux (np.array) - Contains the recordings of the intensity of a star's light intensity over time.
+
+            searchMode (bool) - When True, reduces noise to enhance transits, making them easier to detect. 
+            If quality needs to be preserved, it is recommended to set this to False (True by default).
+        """
         self.searchMode = searchMode
         self.times = times
         self.size = len(self.times)
         self.dt = (self.times[-1] - self.times[0])/self.size
         #Applies a convolution to the flux which reduces noise and accentuates transits.
-        self.uniformConvolutionFactor = floor(factor*(0.5 if searchMode else 0.05)*MINIMUM_PERIOD/self.dt) or 1
+        self.uniformConvolutionFactor = floor((0.5 if searchMode else 0.05)*MINIMUM_PERIOD/self.dt) or 1
         
         #Removal of outliers if searchMode is off.
         if not searchMode: 
@@ -87,6 +136,23 @@ class TransitDetector():
         return min(self.times.searchsorted(time), self.size - 1)
 
     def findTransit(self, timeStart=None, timeEnd=None, reverse=False, transitThreshold=None):
+        """Returns the time at which the first transit was detected, None if no transit was detected in the given time bounds.
+
+        ----------
+        Arguments:
+            timeStart (float) - The time at which to start searching for transits (The first value of the time array by default, last if reverse).
+            
+            timeEnd (float) - The time at which to stop searching for transits (The last value of the time array by default, first if reverse).
+
+            reverse (bool) - The direction in which to search for transits (False by default).
+
+            transitThreshold (float) - The flux level below which a transit is detected, relative to the standard transit threshold 
+            (see `getTransitThreshold()` for more information) (1 by default).
+
+        ----------
+        Returns:
+            time (float|None) - The time at which the transit was detected, or None if no transit was detected.
+        """
         self.getTransitThreshold()
         i = self.__findTransit(
             self.__findTime(timeStart) if timeStart is not None else (self.size if reverse else 0),
@@ -96,9 +162,56 @@ class TransitDetector():
         return i and self.times[i]
 
     def findTransitPeak(self, timeStart=None, timeEnd=None, reverse=False, transitThreshold=None, searchMode=True):
+        """Returns the time of the peak of the first transit detected, None if no transit was detected in the given time bounds.
+
+        ----------
+        Arguments:
+            timeStart (float) - The time at which to start searching for transits (The first value of the time array by default, last if reverse).
+            
+            timeEnd (float) - The time at which to stop searching for transits (The last value of the time array by default, first if reverse).
+
+            reverse (bool) - The direction in which to search for transits (False by default).
+
+            transitThreshold (float) - The flux level below which a transit is detected, relative to the standard transit threshold 
+            (see `getTransitThreshold()` for more information) (1 by default).
+
+            searchMode (bool) - If true, will search the given time bounds sequantially from timestart to timeEnd, else will search and return the 
+            transit closest to the midpoint of timeStart and timeEnd.
+
+        ----------
+        Returns:
+            time (float|None) - The time of the peak of the first transit detected, or None if no transit was detected.
+        """
         return self.findTransitBounds(timeStart, timeEnd, reverse, transitThreshold, searchMode)[1]
     
     def findTransitBounds(self, timeStart=None, timeEnd=None, reverse=False, transitThreshold=None, searchMode=True):
+        """Returns the start, peak, and end time of the peak of the first transit detected, 
+        None if no transit was detected in the given time bounds.
+
+        ----------
+        Arguments:
+            timeStart (float) - The time at which to start searching for transits (The first value of the time array by default, last if reverse).
+            
+            timeEnd (float) - The time at which to stop searching for transits (The last value of the time array by default, first if reverse).
+
+            reverse (bool) - The direction in which to search for transits (False by default).
+
+            transitThreshold (float) - The flux level below which a transit is detected, relative to the standard transit threshold 
+            (see `getTransitThreshold()` for more information) (1 by default).
+
+            searchMode (bool) - If true, will search the given time bounds sequantially from timestart to timeEnd, else will search and return the 
+            transit closest to the midpoint of timeStart and timeEnd.
+
+        ----------
+        Returns:
+            tuple (start, peak, end):
+                start (float) - The time at which the transit is detected.
+                
+                peak (float) - The time at which the transit reaches its maximum flux.
+                
+                end (float) - The time at which the transit ends.
+            or (None, None, None) if no transit was detected in the given time bounds.
+        """
         self.getTransitThreshold()
         if searchMode:
             bounds = self.__findTransitBounds(
@@ -137,8 +250,7 @@ class TransitDetector():
                 peak (int) - The time index at which the transit reaches its maximum flux.
                 
                 end (int) - The time index at which the transit ends.
-
-                None is returned if a transit is not found.
+            or None if no transit was detected in the given time bounds.
         """
         START = start
         END = end
@@ -231,10 +343,20 @@ class TransitDetector():
                 end = i + step
             i += direction
         anomalyEnd = end - step
-        self.addAnomalousRegion(*((anomalyEnd, firstAnomaly) if reverse else (firstAnomaly, anomalyEnd)))
+        self.__addAnomalousRegion(*((anomalyEnd, firstAnomaly) if reverse else (firstAnomaly, anomalyEnd)))
         return anomalyEnd
     
-    def addAnomalousRegion(self, start, end):
+    def addAnomalyRegion(self, timeStart, timeEnd):
+        """Marks a region as anomalous. Transits are ignored within anomalous regions.
+
+        ----------
+        Arguments:
+            start (float) - The time of the start of the anomalous region.
+            end (float) - The time to end of the anomalous region.
+        """
+        self.__addAnomalyRegion(self.__findTime(timeStart), self.findTime(timeEnd))
+
+    def __addAnomalousRegion(self, start, end):
         searchOffset = floor(MINIMUM_PERIOD/(2*self.dt)) + 1
         start -= searchOffset
         end += searchOffset
@@ -246,12 +368,27 @@ class TransitDetector():
             #Resolution of potentially overlapping regions.
             isBoundOutsideRegion = lambda boundI : (boundI & 1) == 0 #If bound in of an even index, it is outside a region.
             self.anomalousRegions[startI:endI] = [bound for bound, boundI in zip([start, end], [startI, endI]) if isBoundOutsideRegion(boundI)]
-
     
     def getAnomalousRegions(self):
+        """Returns the anomalous regions (regions within which transits are ignored).
+
+        ----------
+        Returns:
+            *anomalous regions (array[(float, float)]) - An array of the anomalous regions, where anomalous regions are represented by
+            a tuple of the time at which they start and end.
+        """
         return [[self.times[x] for x in self.anomalousRegions[i:i+2]] for i in range(0,len(self.anomalousRegions),2)]
 
     def getData(self):
+        """Returns the anomalous regions.
+
+        ----------
+        Returns:
+            tuple (times, convolved flux)
+                times (np.array) - Contains the times for the corresponding flux recordings.
+
+                convolved flux (np.array) - The flux recordings convolved to reduce noise, and so enhance transits.
+        """
         return self.times, self.convolvedFlux
 
     def __getitem__(self, key):
@@ -264,8 +401,34 @@ class TransitDetector():
             i = self.__findTime(key)
             return self.times[i], self.convolvedFlux[i]
 
-class DataAnalyser():
-    def __init__(self, dataID=None, dataHandler:AbstractDataHandler=LocalDataHandler, highAccuracy=True):
+class DataAnalyser(AbstractDataHandler):
+    """Class for the analysis of stellar systems.
+    Allows for system parameters to be extrancted from the required data provided by an instance of a subclass of AbstractDataHandler.
+
+    System parameters supported:
+        - Stellar radius - The mean volumetric radius of the star -- Units: `Solar Radii`.
+        - Stellar mass - The mass of the star -- Units: `Solar Masses`.
+        - Orbital period - The time interval between transits -- Units: `Days`.
+        - Phase - The time at which the first transit is detected -- Units: `Days`.
+        - transit duration - The time the planet spends partially blocking the star's light -- Units: `Days`.
+        - Planetary radius - The radius of the planet -- Units: `Earth Radii`.
+        - Semi-major axis - The farthest distance between the planet and the star -- Units: `AU`.
+        - Impact parameter - The perpendicular distance between the orbit the star's centre, expressed as a ratio of 
+        the star's radius -- Units: `Solar radius ratio`.
+        - Orbital inclination - The angle between the star's and the planet's orbiting plane -- Units: `degrees`.
+    """
+
+    def __init__(self, dataID=None, highAccuracy=True, dataHandler:AbstractDataHandler=LocalDataHandler):
+        """
+        Arguments:
+            dataID (str) - The ID of the data to load.
+
+            highAccuracy (bool) - If True, calculates to the highest degree of accuracy at the cost of performance. True by default.
+            
+            dataHandler (AbstractDataHandler) - Class or instance to be used to fetch required data from 
+            (times against flux arrays, stellar radius, stellar mass), must implement AbstractDataHandler methods. 
+            The LocalDataHandler class is used by default.
+        """
         self.dataHandler = dataHandler(dataID) if dataID else dataHandler if not inspect.isclass(dataHandler) else None
         self.dataID = dataID or self.dataHandler and self.dataHandler.dataID
         #Flux against Time data
@@ -281,7 +444,7 @@ class DataAnalyser():
         self.size = len(self.times) if self.dataHandler is not None else None
         self.period = None
         self.transitThreshold = None
-        self.transitLength = None
+        self.transitDuration = None
         self.phase = None
 
         self.HIGH_ACCURACY_FLAG = highAccuracy
@@ -289,79 +452,153 @@ class DataAnalyser():
         self.SAMPLING_FLAG = False
 
     def plot(self, plotType=""):
-        match plotType:
+        """Uses matplotlib.pyplot to plot a graph using the data provided to DataAnalyser via the TransitModel.
+
+        ----------
+        Arguments:
+            plotType (str) - Specifies the type of plot to plot. Must be one of the following options:
+                Standard ("phase" | "phase folded" | "p") - Plots the time against flux data.
+
+                Phase Folded ("phase" | "phase folded" | "p") - Plots the time, phase-folded by the orbital period calculated, against flux data.
+
+                Convolted ("convolved" | "convolution" | "c") - Plots the time against the convolted flux data.
+
+                Model ("model" | "m") - Plots the model's time against flux sampled at the data's time recording interval.
+
+                Phase model ("phase model" | "pm") - Plots the both the model's and phase folded time against flux data.
+
+                Convolved phase ("convolved phase" | "cp") - Plots the phase-folded time against the convolted flux data.
+
+                Convolved phase model ("convolved phase model" | "cpm")- Plots both model and the phase-folded time against the convolted flux data.
+
+                Histogram ("histogram" | "h") - Forms a histogram of fluxes in the flux data.
+
+                Convolved histogram ("convolved histogram" | "ch") - Forms a histogram of fluxes in the convolved flux data.
+        """
+        match plotType.lower():
             case "normal" | "standard" | "n" | "s" | "":
                 plot(self.getData())
             case "phase" | "phase folded" | "p":
                 plot(self.getPhaseFoldedData())
-            case "convolved" | "convolution" | "con" | "c":
+            case "convolved" | "convolution" | "c":
                 plot((self.times, self.transits.convolvedFlux))
             case "model" | "m":
                 plot(self.getModel().getData())
-            case "phase model" | "pm" | "p+":
+            case "phase model" | "pm":
                 plot(self.getPhaseFoldedData(), self.getModel().getData())
             case "convolved phase" | "cp":
                 plot(self.getModel().transitDetector.getData())
             case "convolved phase model" | "cpm":
                 plot(self.getModel().transitDetector.getData(), self.getModel().getData())
-            case "histogram" | "hist" | "h":
+            case "histogram" | "h":
                 histogram(self.flux)
-            case "convolved histogram" | "con hist" | "ch":
+            case "convolved histogram" | "ch":
                 histogram(self.transits.convolvedFlux)
             case _:
                 raise Exception("Invalid Plot Type: Plot not recognised.\nPlot Type Options: 'standard', 'phase folded', 'model', 'phase model'.")
         plt.show()
 
-    def getData(self):
-        return self.times, self.flux
-
     def getPhaseFoldedData(self):
+        """Returns the flux against time data of the stellar system.
+        
+        ----------
+        Returns:
+            tuple (phase-folded times, flux):
+                phase-folded times (np.array) - Contains the phase-folded times for the corresponding flux recordings.
+                Generated by `((times - phase + period/2) % period) - period/2`.
+
+                flux (np.array) - Contains the recordings of the intensity of the star's light. Data must be normalised
+                (i.e. flux must be a fraction of the mean).
+
+            *Note that the arrays returned must not contain NaN values.
+        """
         if self.phaseFoldedTimes is None:
             self.getOrbitalPeriod()
             self.phaseFoldedTimes, self.phaseFoldedFlux = phaseFold(self.times, self.flux, self.period, self.phase)
         return self.phaseFoldedTimes, self.phaseFoldedFlux
     
     def getModel(self):
+        """Returns the instance of the model of the phase-folded transit.
+
+        Returns:
+            model (PhaseFoldedTransitModel) - The instace of the model of the phase-folded transit.
+        """
         if self.model is None:
             self.model = PhaseFoldedTransitModel(*self.getPhaseFoldedData())
-            self.transitLength = self.model.max - self.model.min
+            self.transitDuration = self.model.max - self.model.min
         return self.model
     
     def getOrbitalPeriod(self):
+        """Returns the lowest planetary orbital period. 
+
+        Returns:
+            orbital period (float) - The time the planet takes to complete and orbit around its star -- Units: `Days`.
+        """
         if self.HIGH_ACCURACY_FLAG and not self.SAMPLING_FLAG:
             self.__sampleTransits()
         elif not self.CALIBRATION_FLAG:
             self.__calibrate()
         return self.period
 
-    def getTransitLength(self):
+    def getTransitDuration(self):
+        """Returns the transit duration of the planet with the lowest orbital period. 
+
+        Returns:
+            transit duration (float) - The time the planet spends partially blocking the star's light -- Units: `Days`.
+        """
         if self.HIGH_ACCURACY_FLAG and not self.model:
             self.getModel()
-        if self.transitLength is None:
+        if self.transitDuration is None:
             start, peak, end = self.transits.findTransitBounds(self.getPhase(), transitThreshold=self.transitThreshold)
             if start and end:
-                self.transitLength = max(end - start - 2*self.transits.dt*self.transits.uniformConvolutionFactor, self.transits.dt)
-        return self.transitLength
+                self.transitDuration = max(end - start - 2*self.transits.dt*self.transits.uniformConvolutionFactor, self.transits.dt)
+        return self.transitDuration
 
     def getPhase(self):
+        """Returns the transit duration of the planet with the lowest orbital period. 
+
+        Returns:
+            transit duration (float) - The time the planet spends partially blocking the star's light -- Units: `Days`.
+        """
         if self.phase is None:
             self.__calibrate()
         return self.phase
     
     def getPlanetaryRadius(self):
+        """Returns the planetary radius of the planet with the lowest orbital period. 
+
+        Returns:
+            planetary radius (float) - The radius of the planet -- Units: `Earth Radii`.
+        """
         return self.radius and self.getModel().getPeak() and formulas.planetaryRadius(self.radius, self.getModel().getPeak())
     
     def getSemiMajorAxis(self):
+        """Returns the semi-major axis of the planet with the lowest orbital period. 
+
+        Returns:
+            semi-major axis (float) - The farthest distance between the planet's and the star's centres -- Units: `AU`.
+        """
         if self.mass and self.getOrbitalPeriod():
             return self.mass and formulas.semiMajorAxis(self.mass, self.period)
         return None
 
     def getImpactParameter(self):
-        if self.radius and self.mass and self.getOrbitalPeriod() and self.getTransitLength() and (planetaryRadius := self.getPlanetaryRadius()):
-            return formulas.transitImpactParameter(self.radius, self.mass, planetaryRadius, self.period, self.transitLength)
+        """Returns the impact parameter of the planet with the lowest orbital period. 
+
+        Returns:
+            impact parameter (float) - The perpendicular distance between the orbit the star's centre, expressed as a ratio of the 
+            star's radius -- Units: `Solar radius ratio`.
+        """
+        if self.radius and self.mass and self.getOrbitalPeriod() and self.getTransitDuration() and (planetaryRadius := self.getPlanetaryRadius()):
+            return formulas.transitImpactParameter(self.radius, self.mass, planetaryRadius, self.period, self.transitDuration)
         return None
 
     def getOrbitalInclination(self):
+        """Returns the orbital inclination axis of the planet with the lowest orbital period. 
+
+        Returns:
+            orbital inclination (float) - The angle between the star's and the planet's orbiting plane -- Units: `degrees`.
+        """
         if self.radius and (semiMajorAxis := self.getSemiMajorAxis()) and (impactParameter := self.getImpactParameter()) is not None:
             return formulas.planetOrbitalInclination(self.radius, semiMajorAxis, impactParameter)
         return None
@@ -484,21 +721,27 @@ class PhaseFoldedTransitModel():
         self.peakFlux, self.peakTime = None, None
 
     def getPeak(self):
+        """Returns the magnitude of the peak flux.
+
+        Returns:
+            peak flux (float) - The greatest change in flux when transiting -- Units: `Normalised stellar flux`.
+        """
         if self.peakFlux is None:
             self.__initialisePeakValues()
-        return self.peakFlux
+        return -self.peakFlux
     
     def getPeakTime(self):
+        """Returns the time at which the peak flux occured.
+
+        Returns:
+            time (float) -- Units: `Days`.
+        """
         if self.peakTime is None:
             self.__initialisePeakValues()
         return self.peakTime
 
     def __initialisePeakValues(self):
-        peakTimesArray = [x.real for x in polyroots(polyder(self.coeffs, 1)) if np.isreal(x)]
-        self.peakTime = peakTimesArray[0]
-        for peakTime in peakTimesArray[1:]:
-            if abs(peakTime) < abs(self.peakTime):
-                self.peakTime = peakTime
+        self.peakTime = min([x.real for x in polyroots(polyder(self.coeffs, 1)) if np.isreal(x) and self.min <= x <= self.max]) or self.min
         self.peakFlux = self[self.peakTime]
             
     def getData(self):
