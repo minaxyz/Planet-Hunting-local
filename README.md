@@ -32,6 +32,9 @@ Abstract data handler class for the creation of data handlers which are compatib
 ### data_handler.LocalDataHandler
 Built-in fetching of data from specified local files which follow the old or new nasa exoplanet archive data format.
 
+### formulas.py
+A module containing all the formulas for the calculation of system parameters.
+
 ## Example Code
 Plotting a histogram of planetary radii.
 ```
