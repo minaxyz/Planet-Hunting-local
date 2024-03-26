@@ -35,6 +35,9 @@ Built-in fetching of data from specified local files which follow the old or new
 ### formulas.py
 A module containing all the formulas for the calculation of system parameters.
 
+### utils.py
+A module containing more complex relevant algorithms.
+
 ## Example Code
 Plotting a histogram of planetary radii.
 ```
