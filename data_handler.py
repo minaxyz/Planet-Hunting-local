@@ -86,7 +86,7 @@ class LocalDataHandler(AbstractDataHandler):
     def __initialiseStellarMassAndRadius(self):
         f = PdfReader(open("Data/Stellar_Mass_Radius.pdf", 'rb'))
         tableData = f.pages[0].extract_text().split()[9:]
-        self.stellarMassRadiusDict = {tableData[i]:(float(tableData[i+1]),float(tableData[i+2]))  for i in range(0,len(tableData),3)}
+        self.stellarMassRadiusDict = {tableData[i]:(float(tableData[i+2]),float(tableData[i+1]))  for i in range(0,len(tableData),3)}
     
     def load(self, dataID:str):
         """Loads the data from the specified stellar system.
@@ -103,7 +103,7 @@ class LocalDataHandler(AbstractDataHandler):
             directory = self.systemsDirectoryDict[self.dataID]
             if "KIC" in directory.upper():
                 self.times, self.flux = np.loadtxt(directory, unpack=True, skiprows=3, usecols=[1,2])
-            elif "KPLR" in directory.upper():
+            else:
                 self.times, self.flux = np.loadtxt(directory, unpack=True, skiprows=136, usecols=[0,7])
                 self.__removeNANFluxValues()
 

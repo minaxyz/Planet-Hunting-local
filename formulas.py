@@ -19,12 +19,14 @@ def stellarMass(stellarRadius, surfaceGravity):
     """
     return (surfaceGravity * (stellarRadius*SOLAR_RADIUS)**2)/(G*SOLAR_MASS)
 
-def transitImpactParameter(stellarRadius, planetaryRadius, orbitalPeriod, transitDuration):
+def transitImpactParameter(stellarRadius, stellarMass, planetaryRadius, orbitalPeriod, transitDuration):
     """
     Arguments:
         stellar radius (float) -- Units: `Solar radii`.
 
         planetary radius (float) -- Units: `ms^-2`.
+
+        semi major axis (float) -- Units: `AU`.
 
         orbital period (float) -- Units: `Days`.
 
@@ -34,7 +36,7 @@ def transitImpactParameter(stellarRadius, planetaryRadius, orbitalPeriod, transi
     Returns:
         transit impact parameter (float) -- Units: `Stellar radius ratio`.
     """
-    return (((((stellarRadius*SOLAR_RADIUS - planetaryRadius*EARTH_RADIUS)**2)-((semiMajorAxis(orbitalPeriod, transitDuration)*AU*math.sin((transitDuration * math.pi)/(orbitalPeriod)))**2))**0.5)/(stellarRadius*SOLAR_RADIUS))
+    return min((max(((stellarRadius*SOLAR_RADIUS + planetaryRadius*EARTH_RADIUS)**2)-((semiMajorAxis(stellarMass, orbitalPeriod)*AU*math.sin(transitDuration * math.pi/orbitalPeriod))**2), 0)**0.5)/(stellarRadius*SOLAR_RADIUS), 1 + (planetaryRadius*EARTH_RADIUS/stellarRadius*SOLAR_RADIUS))
 
 def semiMajorAxis(stellarMass, orbitalPeriod):
     """
@@ -49,22 +51,20 @@ def semiMajorAxis(stellarMass, orbitalPeriod):
     """
     return ((G*SOLAR_MASS*stellarMass*(86400*orbitalPeriod)**2/(4*math.pi**2))**(1/3))/AU
 
-def planetOrbitalInclination(starRadius, planetRadius, stellarMass, orbitalPeriod, transitDuration):
+def planetOrbitalInclination(starRadius, semiMajorAxis, transitImpactParameter):
     """
     Arguments:
         stellar radius (float) -- Units: `Solar radii`.
 
-        planetary radius (float) -- Units: `Earth radii`.
+        semi major axis (float) -- Units: `AU`.
 
-        orbital period (float) -- Units: `Days`.
-
-        transit duration (float) -- Units: `Days`.
+        transit impact parameter (float) -- Units: `Stellar radius ratio`.
 
     ------------------------
     Returns:
         planet orbital inclination (float) -- Units: `Degrees`.
     """
-    return math.acos((transitImpactParameter(starRadius,planetRadius, orbitalPeriod, transitDuration)*starRadius*SOLAR_RADIUS)/(semiMajorAxis(stellarMass, orbitalPeriod)*AU))*(180/math.pi)
+    return math.acos((transitImpactParameter*starRadius*SOLAR_RADIUS)/(semiMajorAxis*AU))*(180/math.pi)
 
 def planetaryRadius(solarRadius, flux):
     """

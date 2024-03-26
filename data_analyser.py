@@ -31,9 +31,8 @@ ACCEPTANCE_LEVEL = 0.8
 Currently, rejects a transit after 0 passes and 3 fails, or rejected if below 20% passes. (#Fails no passes to reject = (1/REJECTION_LEVEL) - 2"""
 REJECTION_LEVEL = 0.2
 TRANSIT_CHARACTERISTICS_CLOSENESS_LEVEL = 0.025 #Determines if a period and phase of a transit pair partains to the current period and phase found.
-NON_ZERO = 0.01
 ##Orbital Period Calculation Constants
-PERIOD_CALC_SEARCH_OFFSET = 0.1 #Determines the interval to search for the transit (Fractions of the period).
+PERIOD_CALC_SEARCH_OFFSET = 0.2 #Determines the interval to search for the transit (Fractions of the period).
 RECALIBRATION_FACTOR = 2 #Determines how often to recalibrate (Recalibration occurs every log_RECALIBRATION_FACTOR(NTransits) times).
 
 def plot(*plots):
@@ -57,21 +56,32 @@ def phaseFold(times, flux, period, phase):
     return phaseFoldedTimes[sort], flux[sort]
 
 class TransitDetector():
-    def __init__(self, times, flux, searchMode=True):
+    def __init__(self, times, flux, searchMode=True, factor=1):
         self.searchMode = searchMode
         self.times = times
         self.size = len(self.times)
         self.dt = (self.times[-1] - self.times[0])/self.size
         #Applies a convolution to the flux which reduces noise and accentuates transits.
-        self.uniformConvolutionFactor = floor((0.5 if searchMode else 0.01)*MINIMUM_PERIOD/self.dt) or 1
+        self.uniformConvolutionFactor = floor(factor*(0.5 if searchMode else 0.05)*MINIMUM_PERIOD/self.dt) or 1
+        
+        #Removal of outliers if searchMode is off.
+        if not searchMode: 
+            self.convolvedFlux = flux
+            self.medianFlux = None
+            self.transitThreshold = None
+            anomalousThreshold = -self.getTransitThreshold()
+            anomalousIndexes = [i for i, flux in enumerate(flux) if flux > anomalousThreshold]
+            self.times = np.delete(self.times, anomalousIndexes)
+            flux = np.delete(flux, anomalousIndexes)
+        
         self.convolvedFlux = np.convolve(flux, np.full(self.uniformConvolutionFactor, 1/self.uniformConvolutionFactor, dtype=float),'same')
-
+        
         self.anomalousRegions = [] #Even indexes represent the start of an anomalous region, and its next odd index represents the end of the anomaly.
         self.medianFlux = None #The median flux, calculated from the first FLUX_SAMPLES flux values.
         self.transitThreshold = None #The threshold below which transits should occur. Implementation details in self.getTransitThreshold.
         
-        self.end = self.times[-1]
         self.start = self.times[0]
+        self.end = self.times[-1]
 
     def __findTime(self, time):
         return min(self.times.searchsorted(time), self.size - 1)
@@ -106,7 +116,7 @@ class TransitDetector():
             elif rightTransitBounds[1] is None:
                 return leftTransitBounds
             else:
-                return leftTransitBounds if midPoint - leftTransitBounds[1] < rightTransitBounds[1] - midPoint else rightTransitBounds
+                return leftTransitBounds if leftTransitBounds[0] - midPoint < midPoint - rightTransitBounds[2]  else rightTransitBounds
         return (None, None, None) if bounds is None else tuple(self.times[x] for x in bounds)
 
     def __findTransitBounds(self, start, end, reverse, transitThreshold):
@@ -133,7 +143,7 @@ class TransitDetector():
         START = start
         END = end
         #Ensuring that the transit is not anomalous.
-        while self.searchMode and (start := self.__findTransit(start, end, reverse, transitThreshold)) != (nregion := self.__findNormalRegion(start, reverse)):
+        while (start := self.__findTransit(start, end, reverse, transitThreshold)) != (nregion := self.__findNormalRegion(start, reverse)) and self.searchMode:
             start = nregion
         #Returning if None i.e. transit is not found in the given bound.
         if start is None or (start < end if reverse else start > end):
@@ -347,13 +357,13 @@ class DataAnalyser():
         return None
 
     def getImpactParameter(self):
-        if self.radius and self.getPlanetaryRadius() and self.getOrbitalPeriod() and self.getTransitLength():
-            return formulas.transitImpactParameter(self.radius, self.getPlanetaryRadius(), self.period, self.transitLength)
+        if self.radius and self.mass and self.getOrbitalPeriod() and self.getTransitLength() and (planetaryRadius := self.getPlanetaryRadius()):
+            return formulas.transitImpactParameter(self.radius, self.mass, planetaryRadius, self.period, self.transitLength)
         return None
 
     def getOrbitalInclination(self):
-        if self.radius and self.mass and self.getPlanetaryRadius() and self.getOrbitalPeriod() and self.getTransitLength():
-            return formulas.planetOrbitalInclination(self.radius, self.getPlanetaryRadius(), self.mass, self.period, self.transitLength)
+        if self.radius and (semiMajorAxis := self.getSemiMajorAxis()) and (impactParameter := self.getImpactParameter()) is not None:
+            return formulas.planetOrbitalInclination(self.radius, semiMajorAxis, impactParameter)
         return None
     
     def __calibrate(self, transitThreshold=1.5, timeStart=None, timeEnd=None, acceptanceLevel=ACCEPTANCE_LEVEL):
@@ -375,7 +385,7 @@ class DataAnalyser():
         for permutation in range(1,len(transitSampleArray)-1):
             for period, phase in ((period, transitSampleArray[i]) for i in range(len(transitSampleArray) - permutation - 1)
                                   #Permutation only checked if period is lower than the current period.
-                                if (period := transitSampleArray[i + permutation] - transitSampleArray[i]) and self.period is None or MINIMUM_PERIOD < period < self.period - search_offset):
+                                if (period := transitSampleArray[i + permutation] - transitSampleArray[i]) and MINIMUM_PERIOD < period and (self.period is None or self.period - search_offset)):
                 #Initial probability of a valid period set to 50%.
                 passed = 1
                 total = 2
@@ -398,10 +408,10 @@ class DataAnalyser():
                 break
         if self.period is None and self.phase is None: #Performs calibration at a lower transit threshold if no valid period was identified.
             self.__calibrate(transitThreshold*TRANSIT_THRESHOLD_ITERATION_SCALING, acceptanceLevel=acceptanceLevel)
-            if self.period is None and self.phase is None and acceptanceLevel is not NON_ZERO:
-                self.__calibrate(acceptanceLevel=NON_ZERO) #If no valid orbital periods found, sets the acceptance level to only 3 transits required.
+            if self.period is None and self.phase is None and acceptanceLevel > REJECTION_LEVEL:
+                self.__calibrate(acceptanceLevel=acceptanceLevel - 0.2) #If no valid orbital periods found, sets the acceptance level to only 3 transits, then any transit pair.
         else: #Identifies if there is a lower valid period.
-            self.__calibrate(transitThreshold*TRANSIT_THRESHOLD_ITERATION_SCALING, self.phase, self.phase + 2*self.period)
+            self.__calibrate(transitThreshold*TRANSIT_THRESHOLD_ITERATION_SCALING, self.phase, self.phase + 2*self.period, acceptanceLevel=acceptanceLevel)
             self.CALIBRATION_FLAG = True
 
     def __sampleTransits(self):
@@ -415,10 +425,10 @@ class DataAnalyser():
         nTransits = 1
         peakSum, weightedPeakSum = self.phase, 0
         nSkippedTransits, skippedTransitsSum, skippedTransitsSquareSum = 0, 0, 0
-        backtrack = self.period*self.transitThreshold*PERIOD_CALC_SEARCH_OFFSET
+        searchOffset = self.period*self.transitThreshold*PERIOD_CALC_SEARCH_OFFSET
         recalibration = 2
         while nextTransitTimePredicted < lastTransitTime:
-            nextTransitTimeFound = self.transits.findTransitPeak(nextTransitTimePredicted - backtrack, nextTransitTimePredicted + backtrack, transitThreshold=self.transitThreshold, searchMode=False)
+            nextTransitTimeFound = self.transits.findTransitPeak(nextTransitTimePredicted - searchOffset, nextTransitTimePredicted + searchOffset, transitThreshold=self.transitThreshold, searchMode=False)
             if nextTransitTimeFound is None:
                 nSkippedTransits += 1
                 skippedTransitsSum += nTransits
@@ -454,12 +464,12 @@ class PhaseFoldedTransitModel():
         self.phaseFoldedTimes, self.phaseFoldedFlux = phaseFoldedTimes, phaseFoldedFlux
         self.transitDetector = TransitDetector(phaseFoldedTimes, phaseFoldedFlux, searchMode=False)
         #Finds the transit bounds to create the interpolated model from.
-        self.min, peak, self.max = self.transitDetector.findTransitBounds(0, searchMode=False)
         #Creates a polynomial to fit the phase folded transit.
         threshold = 1
+        self.min, self.max = None, None
         while self.min is None or self.max is None:
-            threshold *= 0.75
             self.min, peak, self.max = self.transitDetector.findTransitBounds(0, searchMode=False, transitThreshold=threshold)
+            threshold *= 0.75
         timeCFluxInterval = self.transitDetector[self.min:self.max]
         self.model = Polynomial.fit(*timeCFluxInterval, 4)
         #Finds the domain of the polynomial model.
