@@ -743,8 +743,9 @@ class PhaseFoldedTransitModel():
         return self.peakTime
 
     def __initialisePeakValues(self):
-        self.peakTime = min([x.real for x in polyroots(polyder(self.coeffs, 1)) if np.isreal(x) and self.min <= x <= self.max] or [self.min]) 
-        self.peakFlux = self[self.peakTime]
+        self.peakTime, self.peakFlux = min([(x.real, self[x.real]) 
+                                            for x in list(polyroots(polyder(self.coeffs, 1))) + [self.min, self.max]
+                                            if np.isreal(x) and self.min <= x <= self.max], key=lambda x:x[1]) 
             
     def getData(self):
         """Returns the phase-folded time and the model's corresponding estimated flux values as a tuple of time and flux. 
